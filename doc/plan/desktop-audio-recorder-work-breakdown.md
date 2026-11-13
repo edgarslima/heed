@@ -77,7 +77,7 @@ Step plan: [P00 bootstrap plan](desktop-audio-recorder-p00-bootstrap.md).
 
 ### P03 · Common engine — host Any
 
-Split into P03a, P03b, and P03.7 as an approved deviation (section 6). Owning path: `crates/recorder-core/src/capture/` (contract, synthetic source) and `crates/recorder-core/src/audio/`.
+Split into P03a, P03b, and P03.7 as an approved deviation (section 6). Step plan for P03a: [P03a common engine plan](desktop-audio-recorder-p03a-common-engine.md). Owning path: `crates/recorder-core/src/capture/` (contract, synthetic source) and `crates/recorder-core/src/audio/`.
 
 | WP | Part | Deliverable | Contract source | Gate |
 | --- | --- | --- | --- | --- |

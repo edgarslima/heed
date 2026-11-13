@@ -8,7 +8,7 @@ Each entry follows the checkpoint template in section 4 of the construction plan
 
 ## Next task
 
-P00 is ready for review on `initial_dev`. After review and merge into `dev`, two lanes can start (work breakdown section 5): **P01 · macOS proof** (needs the owner present for permission prompts and audible playback) and **P03a · common engine** (pure logic, synthetic source). Each phase gets its step plan in `doc/plan/` before work starts.
+P03a · common engine on branch `p03a-common-engine` (from `dev`), following the [P03a common engine plan](plan/desktop-audio-recorder-p03a-common-engine.md). P01 · macOS proof follows when the owner can attend the capture tests.
 
 ## Repository
 
@@ -17,7 +17,7 @@ P00 is ready for review on `initial_dev`. After review and merge into `dev`, two
 | Remote | `origin` → https://github.com/edgarslima/heed (public) |
 | Default branch | `main` — stable; initial commit `208539a` |
 | Integration branch | `dev` — created from `main` |
-| Working branch | `initial_dev` — created from `dev` for P00 bootstrap work |
+| Working branches | `initial_dev` — P00 bootstrap (merged into `dev` at `532af1f`); `p03a-common-engine` — P03a |
 | CI host | GitHub Actions, `.github/workflows/ci.yml`; jobs on `macos-15`, `windows-2025`, `ubuntu-24.04` |
 
 ## Host environment
