@@ -129,6 +129,10 @@ Resolved by the project owner on 2026-11-13.
   - `rtrb` was added in Task 6 instead of Task 5; `capture/source.rs` is a declarative file.
   - `SnapshotSlot::publish` skips a snapshot under lock contention instead of holding it pending; the next window follows within 100 ms.
   - Extra tests beyond the plan cover format getters, all sample encoders, planar rendering, and multi-window calls.
-- Pending — none for P03a. P03b needs P01 observations; P03.7 needs the Windows bench.
+  - Final review fixes: `QueueSizing::for_format` takes minimum and maximum block sizes so small blocks still get about 1 s of headroom; blocks carry their queue identity and `recycle` rejects foreign blocks; the synthetic source no longer sends `Discontinuity` events from its callback path and `CaptureSource::start` documents the event channel as non-real-time; the meter envelope starts from the window's own samples.
+- Pending:
+  - Deferred minor findings: `amplitude_to_dbfs` returns infinity for infinite input (inputs are sanitized by `convert_to_f32`); the I32 conversion doc says `[-1.0, 1.0)` but `i32::MAX` rounds to 1.0; a skipped snapshot under lock contention can lose a clipping indication; an unrecycled block shrinks its queue without a counter; no compile-time `Send` assertion for `BlockProducer`; declarative files are not checked for function bodies or scope membership; the `tests.rs` exclusion is not checked against `#[cfg(test)]`.
+  - Before P01 adapters: the coverage gate needs a per-OS scope or inventory, because platform-only adapter files are absent from other OSes' reports.
+  - P03b needs P01 observations; P03.7 needs the Windows bench.
 - Next step — review P03a and choose how to integrate it into `dev`; then P01 with the owner present.
 

@@ -30,6 +30,11 @@ pub trait CaptureSource {
 
     /// Starts delivering blocks to `producer` and session events to `events`.
     ///
+    /// Only the audio callback may use `producer`. `events` may allocate and lock, so
+    /// it is for non-real-time threads only (device notifications, control, and setup);
+    /// the callback reports losses through [`crate::capture::block::BlockFlags`] and the
+    /// `start_frame` gap of the next block.
+    ///
     /// # Errors
     ///
     /// Returns a [`CaptureError`] when capture cannot start.

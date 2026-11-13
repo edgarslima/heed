@@ -124,6 +124,7 @@ impl SyntheticSource {
             let mut flags = BlockFlags::default();
             match scripted {
                 Some(ScriptedEvent::Disconnect) => {
+                    // Stands in for a device-notification thread, which is not real-time.
                     self.send(CaptureEvent::Disconnected {
                         source_id: self.config.source_id,
                         at_frame: Some(self.next_frame),
@@ -132,11 +133,8 @@ impl SyntheticSource {
                     break;
                 }
                 Some(ScriptedEvent::Discontinuity { lost_frames }) => {
-                    self.send(CaptureEvent::Discontinuity {
-                        source_id: self.config.source_id,
-                        at_frame: self.next_frame,
-                        lost_frames: Some(lost_frames),
-                    });
+                    // Losses seen on the callback path travel in the block (flag and
+                    // start-frame gap), not through the event channel, which may allocate.
                     self.next_frame += lost_frames;
                     flags.discontinuity = true;
                 }

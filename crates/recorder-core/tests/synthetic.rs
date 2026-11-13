@@ -44,7 +44,7 @@ fn config(signal: SyntheticSignal, script: Vec<(u64, ScriptedEvent)>) -> Synthet
 }
 
 fn started(config: SyntheticConfig) -> (SyntheticSource, BlockConsumer, Receiver<CaptureEvent>) {
-    let sizing = QueueSizing::for_format(&config.format, config.block_frames);
+    let sizing = QueueSizing::for_format(&config.format, config.block_frames, config.block_frames);
     let (producer, consumer) = block_queue(sizing);
     let (events, receiver) = channel();
     let mut source = SyntheticSource::new(config);
@@ -113,7 +113,7 @@ fn encodes_every_sample_format_and_planar_layout() {
         let mut config = config(SyntheticSignal::Constant(0.5), Vec::new());
         config.format = format;
         config.block_frames = 4;
-        let (producer, mut consumer) = block_queue(QueueSizing::for_format(&format, 4));
+        let (producer, mut consumer) = block_queue(QueueSizing::for_format(&format, 4, 4));
         let mut source = SyntheticSource::new(config);
         source.start(producer, channel().0).expect("start");
         source.pump(1).expect("pump");
@@ -170,14 +170,9 @@ fn scripted_silence_discontinuity_and_invalid_timestamp() {
     let after_gap = consumer.pop().expect("block 2");
     assert!(after_gap.header().flags.discontinuity);
     assert_eq!(after_gap.header().start_frame, 960 + 100);
-    assert_eq!(
-        events.try_recv(),
-        Ok(CaptureEvent::Discontinuity {
-            source_id: SOURCE,
-            at_frame: 960,
-            lost_frames: Some(100)
-        })
-    );
+    // Callback-side losses travel in the block (flag and start-frame gap), never
+    // through the allocating event channel.
+    assert!(events.try_recv().is_err());
     let invalid = consumer.pop().expect("block 3");
     assert!(invalid.header().flags.timestamp_invalid);
     assert_eq!(invalid.header().first_frame_host_time_ns, None);

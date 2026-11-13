@@ -136,6 +136,17 @@ fn reports_the_signed_envelope() {
 }
 
 #[test]
+fn envelope_of_a_constant_window_is_that_constant() {
+    let mut meter = Meter::new(&format(ChannelLayout::Mono));
+
+    let first = meter.process(&[0.5; 4_800], 0).expect("window");
+    let second = meter.process(&[-0.25; 4_800], 4_800).expect("window");
+
+    assert_eq!((first.envelope_min, first.envelope_max), (0.5, 0.5));
+    assert_eq!((second.envelope_min, second.envelope_max), (-0.25, -0.25));
+}
+
+#[test]
 fn snapshot_slot_keeps_only_the_latest() {
     let slot = SnapshotSlot::new();
     let reader = slot.clone();

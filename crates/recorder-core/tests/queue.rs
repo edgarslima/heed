@@ -19,6 +19,7 @@ fn sizes_one_second_of_10_ms_blocks_at_48_khz() {
     let sizing = QueueSizing::for_format(
         &format(48_000, ChannelLayout::Stereo, SampleFormat::F32),
         480,
+        480,
     );
 
     assert_eq!(
@@ -35,15 +36,34 @@ fn rounds_slot_count_up_for_uneven_blocks() {
     let sizing = QueueSizing::for_format(
         &format(44_100, ChannelLayout::Mono, SampleFormat::I16),
         1_024,
+        1_024,
     );
 
     assert_eq!(sizing.slot_count, 44);
 }
 
 #[test]
+fn small_blocks_still_get_one_second_of_headroom() {
+    let sizing = QueueSizing::for_format(
+        &format(48_000, ChannelLayout::Mono, SampleFormat::I16),
+        480,
+        4_096,
+    );
+
+    assert_eq!(
+        sizing,
+        QueueSizing {
+            slot_count: 100,
+            slot_bytes: 8_192
+        }
+    );
+}
+
+#[test]
 fn keeps_at_least_two_slots() {
     let sizing = QueueSizing::for_format(
         &format(8_000, ChannelLayout::Mono, SampleFormat::I16),
+        16_000,
         16_000,
     );
 
@@ -203,4 +223,44 @@ fn recycled_buffers_are_reused() {
 
     assert_eq!(producer.stats().dropped_blocks, 0);
     assert_eq!(consumer.stats().queued_blocks, 10);
+}
+
+#[test]
+fn recycling_a_foreign_block_does_not_change_the_other_queue() {
+    let (mut small_producer, mut small_consumer) = small_queue(2);
+    let (mut large_producer, mut large_consumer) = block_queue(QueueSizing {
+        slot_count: 2,
+        slot_bytes: 3_840,
+    });
+    assert_eq!(
+        small_producer.push(header(0, 0, 1), &[1, 1]),
+        PushOutcome::Queued
+    );
+    let foreign = small_consumer.pop().expect("small block");
+    // Keep one large buffer in flight so the large queue's free ring has room.
+    assert_eq!(
+        large_producer.push(header(0, 0, 1), &[2, 2]),
+        PushOutcome::Queued
+    );
+    let _in_flight = large_consumer.pop().expect("large block");
+
+    assert!(!large_consumer.recycle(foreign));
+
+    assert_eq!(
+        large_producer.push(header(1, 1, 1), &[3, 3]),
+        PushOutcome::Queued
+    );
+    assert_eq!(
+        large_producer.push(header(2, 2, 1), &[4, 4]),
+        PushOutcome::Dropped(DropReason::QueueFull)
+    );
+}
+
+#[test]
+fn recycling_into_the_source_queue_is_accepted() {
+    let (mut producer, mut consumer) = small_queue(2);
+    assert_eq!(producer.push(header(0, 0, 1), &[1, 1]), PushOutcome::Queued);
+    let block = consumer.pop().expect("block");
+
+    assert!(consumer.recycle(block));
 }

@@ -70,8 +70,8 @@ impl Meter {
             peak: 0.0,
             sum_of_squares: 0.0,
             clipped: false,
-            envelope_min: 0.0,
-            envelope_max: 0.0,
+            envelope_min: f32::INFINITY,
+            envelope_max: f32::NEG_INFINITY,
             sequence: 0,
         }
     }
@@ -117,8 +117,10 @@ impl Meter {
         self.peak = 0.0;
         self.sum_of_squares = 0.0;
         self.clipped = false;
-        self.envelope_min = 0.0;
-        self.envelope_max = 0.0;
+        // Every window holds at least one frame, so both bounds are replaced by real
+        // samples before the window is reported.
+        self.envelope_min = f32::INFINITY;
+        self.envelope_max = f32::NEG_INFINITY;
         snapshot
     }
 }
