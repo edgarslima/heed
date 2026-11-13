@@ -54,6 +54,9 @@ jobs:
 
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Create the coverage report directory
+        shell: bash
+        run: mkdir -p coverage
       - run: cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json
       - run: npm run lint
       - run: npm run typecheck
