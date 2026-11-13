@@ -1,0 +1,8 @@
+dist/
+coverage/
+target/
+src-tauri/gen/
+src-tauri/icons/
+package-lock.json
+doc/
+.superpowers/

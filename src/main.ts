@@ -1,2 +1,6 @@
-// Frontend entry point. The app shell is mounted here once it exists (P00 Task 3).
-export {};
+import { mountApp } from "./app";
+
+const root = document.querySelector<HTMLElement>("#app");
+if (root !== null) {
+  mountApp(root);
+}
