@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { execPath } from "node:process";
 import { describe, expect, it } from "vitest";
 import {
   evaluateScope,
@@ -380,7 +381,7 @@ describe("command line", () => {
     const link = join(linkParent, "scripts");
     symlinkSync(resolve("scripts"), link, "junction");
 
-    const run = spawnSync(process.execPath, [join(link, "coverage-gate.mjs")], {
+    const run = spawnSync(execPath, [join(link, "coverage-gate.mjs")], {
       cwd: repo,
       encoding: "utf8",
     });
