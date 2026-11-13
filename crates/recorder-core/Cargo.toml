@@ -6,5 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[dependencies]
+rtrb = "0.4.1"
+
 [lints]
 workspace = true
