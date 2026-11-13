@@ -14,9 +14,19 @@
       "kind": "llvm-cov",
       "report": "coverage/rust.json",
       "include": ["crates/**/src/**/*.rs"],
-      "exclude": [],
+      "exclude": ["crates/**/src/**/tests.rs"],
       "metrics": ["lines"],
-      "status": "pending"
+      "status": "active",
+      "declarativeFiles": [
+        {
+          "path": "crates/recorder-core/src/lib.rs",
+          "reason": "Crate documentation and module declarations only; llvm-cov reports no functions."
+        },
+        {
+          "path": "crates/recorder-core/src/audio/mod.rs",
+          "reason": "Module declarations only; llvm-cov reports no functions."
+        }
+      ]
     },
     {
       "name": "rust-tauri",
