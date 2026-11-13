@@ -49,6 +49,22 @@ Create the initial Cargo workspace with the Tauri app and a `recorder-core` crat
 - One audio worker per session coordinates alignment, DSP, and sequential write buffering. Metering feeds a last-value snapshot. If the UI slows down, discard stale snapshots. The PCM queue never crosses the WebView. If writing blocks long enough to fill the queue, account for the loss and report it to the session. Split the writer into a separate worker only if measurements show the need.
 - The session uses a supervisor to serialize transitions and validate generation IDs. Canceling **Starting** invalidates the generation, tears down resources, and preserves diagnostic errors. Tauri commands do not trigger async work directly. The main app thread keeps the window responsive.
 
+### Implemented contract (P03a)
+
+Accepted on 2026-11-13 from the [P03a common engine plan](../plan/desktop-audio-recorder-p03a-common-engine.md). Paths are relative to `crates/recorder-core/src/`.
+
+| Contract element | Implementation |
+| --- | --- |
+| `AudioBlock` source id, sequence, start index, frame count | `capture::block::BlockHeader` fields `source_id: SourceId`, `sequence`, `start_frame`, `frame_count` |
+| `AudioBlock` rate, sample format, channel layout | `BlockHeader.format: audio::format::AudioFormat` (`sample_rate_hz`, `SampleFormat` I16/I24/I32/F32 little-endian, `ChannelLayout` Mono/Stereo/Discrete, `SampleLayout` Interleaved/Planar); 8–384 kHz, 1–8 channels |
+| `AudioBlock` first-frame timestamp and flags | `first_frame_host_time_ns: Option<u64>`, `flags: BlockFlags { silent, discontinuity, timestamp_invalid }` |
+| `CaptureEvent` | `capture::event::CaptureEvent`: `Disconnected`, `FormatChanged`, `Discontinuity`, `Failed`, `Ended`; failures use `CaptureError` with the section 5 codes |
+| `prepare / start`, `stop` | `capture::source::CaptureSource` trait; `stop` is idempotent and returns `StopSummary` |
+| Preallocated SPSC queue | `capture::queue::{block_queue, BlockProducer, BlockConsumer}` on `rtrb` 0.4.1: one ring for filled blocks, one returning empty buffers; sized by `QueueSizing::for_format` to about 1 s. `push` and `push_silence` do not allocate (verified by a counting-allocator test) and count drops in `QueueStats`; the block after a drop carries `discontinuity` |
+| Conversion | `audio::convert::convert_to_f32`: interleaved finite `f32`; NaN and infinities become 0.0 and are counted |
+| Metering | `audio::meter::Meter` (100 ms windows: peak, RMS as average channel energy, clipping at 32767/32768, signed envelope) and `SnapshotSlot` (latest value only); `amplitude_to_dbfs` floors at -120 dBFS |
+| Synthetic source | `capture::synthetic::SyntheticSource`, pumped on the caller's thread, with scripted silence, discontinuity, invalid timestamp, disconnect, and clock drift in ppm |
+
 ## 3. Adapter implementation
 
 ### Windows · WASAPI
