@@ -5,3 +5,4 @@
 //! state machine live here so they stay testable without a window.
 
 pub mod audio;
+pub mod capture;

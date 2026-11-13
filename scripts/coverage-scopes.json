@@ -25,6 +25,10 @@
         {
           "path": "crates/recorder-core/src/audio/mod.rs",
           "reason": "Module declarations only; llvm-cov reports no functions."
+        },
+        {
+          "path": "crates/recorder-core/src/capture/mod.rs",
+          "reason": "Module declarations only; llvm-cov reports no functions."
         }
       ]
     },
