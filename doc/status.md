@@ -60,6 +60,7 @@ Resolved by the project owner on 2026-11-13.
 7. **P03 split.** Approved: P03a and P03b build the engine on the Mac; P03.7 re-validates it against Windows observations before P08. Updated the construction plan dependency table.
 8. **Speech corpus.** WER is measured on both PT-BR and American English corpora, scored separately. Updated the build specification (AC-08) and the plan's speech test.
 9. **Git remote and CI host.** Public GitHub repository `edgarslima/heed`; CI runs on GitHub Actions. Branches: `main` (stable), `dev` (integration), `initial_dev` (P00 work).
+10. **Coverage exclusion of `src-tauri/src/main.rs`.** Approved by the project owner on 2026-11-13: the window entry point only calls the tested `configure` and `exit_code`.
 
 ## Preflight — Repository alignment
 
@@ -98,7 +99,6 @@ Resolved by the project owner on 2026-11-13.
   - Local bench: the same command sequence passes; `tauri dev` window "Heed" 560 × 600, clamps to 420 × 480.
   - Packaged app: [evidence/p00/packaging.md](../evidence/p00/packaging.md).
 - Pending:
-  - **Owner review:** `src-tauri/src/main.rs` is a justified coverage exclusion (window entry point; composition tested through `configure`).
   - Packaged-window check on Windows and Linux (no benches yet).
   - Merge `initial_dev` into `dev` after review.
 - Deviations from the P00 plan (each decided and verified during execution):
@@ -109,6 +109,5 @@ Resolved by the project owner on 2026-11-13.
   - Task 6: the CI build order rationale was corrected (only release builds embed `frontendDist`); CI creates `coverage/` before `cargo llvm-cov`, pins `cargo-llvm-cov` 0.9.1, and Windows test binaries embed the app manifest. `.gitattributes` forces LF.
   - Task 7: the "networking disabled" check was replaced by `lsof` showing no sockets for the app process; the full offline check stays in P07.5 and P09.3.
 - Owner actions:
-  - Approve or reject the `src-tauri/src/main.rs` coverage exclusion; on approval, replace "Pending owner review" in `scripts/coverage-scopes.json` with the approver and date.
   - Enable branch protection on `main` and `dev` with the `verify` CI checks required, so coding practices section 6 rule 5 is enforced at merge.
 - Next step — review P00, merge into `dev`, then write the P01 or P03a step plan.
