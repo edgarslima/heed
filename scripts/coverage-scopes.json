@@ -1,0 +1,46 @@
+{
+  "scopes": [
+    {
+      "name": "frontend",
+      "kind": "vitest",
+      "report": "coverage/frontend/coverage-summary.json",
+      "include": ["src/**/*.ts"],
+      "exclude": ["**/*.test.ts"],
+      "metrics": ["lines", "branches"],
+      "status": "active"
+    },
+    {
+      "name": "rust-shared",
+      "kind": "llvm-cov",
+      "report": "coverage/rust.json",
+      "include": ["crates/**/src/**/*.rs"],
+      "exclude": [],
+      "metrics": ["lines"],
+      "status": "pending"
+    },
+    {
+      "name": "rust-tauri",
+      "kind": "llvm-cov",
+      "report": "coverage/rust.json",
+      "include": ["src-tauri/src/**/*.rs"],
+      "exclude": [],
+      "metrics": ["lines"],
+      "status": "active",
+      "justifiedExclusions": [
+        {
+          "path": "src-tauri/src/main.rs",
+          "reason": "Entry point that runs the app on the real window event loop, which unit tests cannot start. The app composition lives in lib.rs (configure) and is tested on the Tauri mock runtime; main.rs is verified by the tauri dev and packaged-window checks (P00 Task 2 and Task 7). Pending owner review."
+        }
+      ]
+    },
+    {
+      "name": "swift-bridge",
+      "kind": "xccov",
+      "report": "coverage/swift.json",
+      "include": ["native/macos/**/*.swift"],
+      "exclude": [],
+      "metrics": ["lines"],
+      "status": "pending"
+    }
+  ]
+}

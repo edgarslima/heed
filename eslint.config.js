@@ -18,4 +18,12 @@ export default defineConfig(
       "@typescript-eslint/no-floating-promises": "error",
     },
   },
+  {
+    // Repository tooling scripts are plain Node ESM without type information.
+    files: ["scripts/**/*.mjs"],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: { console: "readonly" },
+    },
+  },
 );

@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "coverage:gate": "node scripts/coverage-gate.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
