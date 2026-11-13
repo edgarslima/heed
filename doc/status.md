@@ -8,7 +8,7 @@ Each entry follows the checkpoint template in section 4 of the construction plan
 
 ## Next task
 
-P03a · common engine on branch `p03a-common-engine` (from `dev`), following the [P03a common engine plan](plan/desktop-audio-recorder-p03a-common-engine.md). P01 · macOS proof follows when the owner can attend the capture tests.
+P03a is ready for review on `p03a-common-engine`. Next: **P01 · macOS proof** when the owner can attend the capture tests; P03b (timeline and resampling) depends on P01.
 
 ## Repository
 
@@ -111,3 +111,24 @@ Resolved by the project owner on 2026-11-13.
 - Owner actions:
   - Enable branch protection on `main` and `dev` with the `verify` CI checks required, so coding practices section 6 rule 5 is enforced at merge.
 - Next step — review P00, merge into `dev`, then write the P01 or P03a step plan.
+
+## P03a — Common engine
+
+- Status — ready for review.
+- Branch and base commit — `p03a-common-engine`, base `532af1f` (`dev`).
+- Requirements covered — work breakdown P03.1–P03.4; architecture section 2 (capture contract, queue) and section 4 (conversion, metering); RF-06 and AC-06 groundwork.
+- Changes:
+  - `recorder-core`: audio formats, block header and flags, capture events and errors, the `CaptureSource` trait, an allocation-free `rtrb` block queue, PCM conversion to finite `f32`, 100 ms metering with a latest-value snapshot slot, and a deterministic synthetic source with scripted events and clock drift.
+  - Coverage gate: `declarativeFiles` for files llvm-cov omits (module declarations, a trait without bodies), each with a reason and a check that they stay unmeasured; `rust-shared` scope active.
+  - Architecture section 2 records the implemented contract.
+- Evidence:
+  - CI run [43505291717](https://github.com/edgarslima/heed/actions/runs/43505291717): success on macOS 15, Windows 2025, Ubuntu 24.04; gate `rust-shared` lines 444/453 on all three.
+  - 56 Rust tests and 28 frontend and script tests pass locally. The allocation test reports 0 allocations over 20,000 queue operations; a mutation check (an injected allocation) made it fail with 20,000.
+- Deviations from the P03a plan:
+  - Integration test files allow `clippy::panic`, `unwrap_used`, and `expect_used` with a stated reason; clippy's test exemptions do not cover helpers in `tests/`.
+  - `rtrb` was added in Task 6 instead of Task 5; `capture/source.rs` is a declarative file.
+  - `SnapshotSlot::publish` skips a snapshot under lock contention instead of holding it pending; the next window follows within 100 ms.
+  - Extra tests beyond the plan cover format getters, all sample encoders, planar rendering, and multi-window calls.
+- Pending — none for P03a. P03b needs P01 observations; P03.7 needs the Windows bench.
+- Next step — review P03a and choose how to integrate it into `dev`; then P01 with the owner present.
+

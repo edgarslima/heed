@@ -1,6 +1,6 @@
 # Desktop Audio Recorder P03a Common Engine Plan
 
-**Purpose:** Step-level implementation plan for P03a (work breakdown P03.1–P03.4): capture contract, synthetic source, bounded block queue, PCM conversion, and metering. **Audience:** The engineer or AI agent executing P03a. **Status:** Ready to execute. Last reviewed: 2026-11-13.
+**Purpose:** Step-level implementation plan for P03a (work breakdown P03.1–P03.4): capture contract, synthetic source, bounded block queue, PCM conversion, and metering. **Audience:** The engineer or AI agent executing P03a. **Status:** Executed on 2026-11-13; deviations and evidence in the P03a entry of `doc/status.md`. Last reviewed: 2026-11-13.
 
 Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) · [Construction plan](desktop-audio-recorder-construction-plan.md) · [Software architecture](../specs/software-architecture-desktop-audio-recorder.md) · [Design system](../specs/design-system-desktop-audio-recorder.md) · [Coding practices](../standard/coding-practices-desktop-audio-recorder.md) · [Status](../status.md)
 
@@ -43,15 +43,15 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 **Interfaces:**
 - Produces: scope field `declarativeFiles: Array<{ path: string, reason: string }>`. A listed file may be absent from the report (llvm-cov omits files without functions, verified 2026-11-13). Each entry must be a literal path that matches a source file and has a non-empty reason. The gate prints `declarative <path>: <reason>`, and fails with `declarative file has measured code: <path>` when the report lists the file with `lines.total > 0`.
 
-- [ ] **Step 1:** Write failing tests:
+- [x] **Step 1:** Write failing tests:
   - `accepts a declarative file that is absent from the report`
   - `fails a declarative file that the report measures`
   - `rejects a declarative file with a glob path, missing reason, or no matching source`
   - `prints a note for each declarative file`
-- [ ] **Step 2:** Run `npx vitest run scripts`. Expected: the 4 new tests fail.
-- [ ] **Step 3:** Implement. Validation sits with the `justifiedExclusions` checks; the missing-from-report loop skips declarative paths; the measured-code check runs for active scopes.
-- [ ] **Step 4:** Run `npx vitest run scripts`. Expected: all pass.
-- [ ] **Step 5:** Commit `feat: allow audited declarative files in the coverage gate`.
+- [x] **Step 2:** Run `npx vitest run scripts`. Expected: the 4 new tests fail.
+- [x] **Step 3:** Implement. Validation sits with the `justifiedExclusions` checks; the missing-from-report loop skips declarative paths; the measured-code check runs for active scopes.
+- [x] **Step 4:** Run `npx vitest run scripts`. Expected: all pass.
+- [x] **Step 5:** Commit `feat: allow audited declarative files in the coverage gate`.
 
 ### Task 2: Audio format types and scope activation (P03.1)
 
@@ -67,19 +67,19 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 - `pub enum FormatError { UnsupportedSampleRate(u32), UnsupportedChannelCount(u16) }`
 - Constants: `MIN_SAMPLE_RATE_HZ = 8_000`, `MAX_SAMPLE_RATE_HZ = 384_000`, `MAX_CHANNELS = 8`.
 
-- [ ] **Step 1:** Write failing tests in `tests/format.rs`:
+- [x] **Step 1:** Write failing tests in `tests/format.rs`:
   - `bytes_per_frame_for_stereo_i24_is_6`
   - `frames_in_100_ms_at_48_khz_is_4800`
   - `frames_in_10_ms_at_44_1_khz_is_441`
   - `frames_in_1_ms_at_44_1_khz_rounds_up_to_45`
   - `rejects_sample_rates_outside_8_khz_to_384_khz` (7_999 and 384_001 rejected; 8_000 and 384_000 accepted)
   - `maps_channel_counts_to_layouts` (1 → Mono, 2 → Stereo, 6 → Discrete(6); 0 and 9 rejected)
-- [ ] **Step 2:** Run `cargo test -p recorder-core --test format`. Expected: compile failure (module missing).
-- [ ] **Step 3:** Implement `audio/format.rs`; `audio/mod.rs` declares `pub mod format;`.
-- [ ] **Step 4:** Run the test. Expected: PASS.
-- [ ] **Step 5:** In `coverage-scopes.json`, set `rust-shared` to `active`, add `exclude: ["crates/**/src/**/tests.rs"]`, and add `declarativeFiles` for `crates/recorder-core/src/lib.rs` and `crates/recorder-core/src/audio/mod.rs` (reason: module declarations only).
-- [ ] **Step 6:** Run `cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json && npm run coverage:gate`. Expected: `PASS rust-shared`.
-- [ ] **Step 7:** Commit `feat: add audio format types and activate the rust-shared coverage scope`.
+- [x] **Step 2:** Run `cargo test -p recorder-core --test format`. Expected: compile failure (module missing).
+- [x] **Step 3:** Implement `audio/format.rs`; `audio/mod.rs` declares `pub mod format;`.
+- [x] **Step 4:** Run the test. Expected: PASS.
+- [x] **Step 5:** In `coverage-scopes.json`, set `rust-shared` to `active`, add `exclude: ["crates/**/src/**/tests.rs"]`, and add `declarativeFiles` for `crates/recorder-core/src/lib.rs` and `crates/recorder-core/src/audio/mod.rs` (reason: module declarations only).
+- [x] **Step 6:** Run `cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json && npm run coverage:gate`. Expected: `PASS rust-shared`.
+- [x] **Step 7:** Commit `feat: add audio format types and activate the rust-shared coverage scope`.
 
 ### Task 3: Blocks, flags, events, and errors (P03.1)
 
@@ -95,15 +95,15 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 - `pub enum CaptureError { PermissionDenied, SourceUnavailable, FormatUnsupported, CaptureInterrupted }` with `pub const fn code(self) -> &'static str` returning the architecture section 5 codes (`permissionDenied`, `sourceUnavailable`, `formatUnsupported`, `captureInterrupted`).
 - `pub enum CaptureEvent { Disconnected { source_id, at_frame: Option<u64> }, FormatChanged { source_id, format: AudioFormat }, Discontinuity { source_id, at_frame: u64, lost_frames: Option<u64> }, Failed { source_id, error: CaptureError }, Ended { source_id, final_frame: u64 } }` with `pub fn source_id(&self) -> SourceId`.
 
-- [ ] **Step 1:** Write failing tests:
+- [x] **Step 1:** Write failing tests:
   - `header_byte_len_is_frames_times_bytes_per_frame` (480 frames, stereo I16 → 1_920)
   - `capture_error_codes_match_the_architecture` (all four literals)
   - `every_event_reports_its_source`
   - `default_flags_are_all_clear`
-- [ ] **Step 2:** Run `cargo test -p recorder-core --test capture-contract`. Expected: compile failure.
-- [ ] **Step 3:** Implement `capture/block.rs` and `capture/event.rs`.
-- [ ] **Step 4:** Run the test. Expected: PASS. Run the gate. Expected: `PASS rust-shared`.
-- [ ] **Step 5:** Commit `feat: add capture block, event, and error types`.
+- [x] **Step 2:** Run `cargo test -p recorder-core --test capture-contract`. Expected: compile failure.
+- [x] **Step 3:** Implement `capture/block.rs` and `capture/event.rs`.
+- [x] **Step 4:** Run the test. Expected: PASS. Run the gate. Expected: `PASS rust-shared`.
+- [x] **Step 5:** Commit `feat: add capture block, event, and error types`.
 
 ### Task 4: PCM conversion to finite f32 (P03.4)
 
@@ -116,7 +116,7 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 - `pub enum ConversionError { PartialFrame { byte_len: usize, bytes_per_frame: usize } }`
 - Scale: I16 ÷ 32,768; I24 (sign-extended) ÷ 8,388,608; I32 ÷ 2,147,483,648. F32 is kept as is when finite (values above 1.0 are preserved for clip detection); NaN and infinities become 0.0 and are counted. Planar input becomes interleaved output.
 
-- [ ] **Step 1:** Write failing tests (exact equality):
+- [x] **Step 1:** Write failing tests (exact equality):
   - `converts_i16_extremes` (`[0x00,0x80]` → -1.0; `[0xff,0x7f]` → 32767/32768; `[0,0]` → 0.0)
   - `converts_i24_extremes` (`[0,0,0x80]` → -1.0; `[0xff,0xff,0x7f]` → 8388607/8388608)
   - `converts_i32_minimum_to_minus_one`
@@ -124,10 +124,10 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
   - `interleaves_planar_stereo` (L = [0.25, 0.5], R = [-0.25, -0.5] → [0.25, -0.25, 0.5, -0.5])
   - `rejects_partial_frames` (5 bytes of stereo I24 → `PartialFrame { byte_len: 5, bytes_per_frame: 6 }`)
   - `reuses_output_capacity` (pointer and capacity unchanged when `out` already has room)
-- [ ] **Step 2:** Run `cargo test -p recorder-core --test convert`. Expected: compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run the test. Expected: PASS. Run the gate. Expected: `PASS rust-shared`.
-- [ ] **Step 5:** Commit `feat: convert PCM blocks to finite interleaved f32`.
+- [x] **Step 2:** Run `cargo test -p recorder-core --test convert`. Expected: compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run the test. Expected: PASS. Run the gate. Expected: `PASS rust-shared`.
+- [x] **Step 5:** Commit `feat: convert PCM blocks to finite interleaved f32`.
 
 ### Task 5: Queue sizing (P03.3)
 
@@ -139,14 +139,14 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 - `pub struct QueueSizing { pub slot_count: usize, pub slot_bytes: usize }`
 - `QueueSizing::for_format(format: &AudioFormat, max_block_frames: u32) -> QueueSizing`: `slot_count = max(2, ceil(sample_rate_hz / max_block_frames))` (about 1 s of audio); `slot_bytes = max_block_frames * bytes_per_frame`.
 
-- [ ] **Step 1:** Write failing tests:
+- [x] **Step 1:** Write failing tests:
   - `sizes_one_second_of_10_ms_blocks_at_48_khz` (480 frames, stereo F32 → 100 slots of 3,840 bytes)
   - `rounds_slot_count_up_for_uneven_blocks` (44,100 Hz, 1,024 frames → 44 slots)
   - `keeps_at_least_two_slots` (8,000 Hz, 16,000 frames → 2)
-- [ ] **Step 2:** Run `cargo test -p recorder-core --test queue`. Expected: compile failure.
-- [ ] **Step 3:** Implement sizing.
-- [ ] **Step 4:** Run the test. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: size block queues to one second of audio`.
+- [x] **Step 2:** Run `cargo test -p recorder-core --test queue`. Expected: compile failure.
+- [x] **Step 3:** Implement sizing.
+- [x] **Step 4:** Run the test. Expected: PASS.
+- [x] **Step 5:** Commit `feat: size block queues to one second of audio`.
 
 ### Task 6: Allocation-free block queue (P03.3)
 
@@ -164,18 +164,18 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 - `ReceivedBlock`: `header(&self) -> &BlockHeader`, `pcm(&self) -> &[u8]`.
 - `stats(&self) -> QueueStats` on both ends: `QueueStats { queued_blocks: u64, dropped_blocks: u64, dropped_frames: u64 }`, shared through `Arc` atomics with `Relaxed` ordering.
 
-- [ ] **Step 1:** Write failing tests in `tests/queue.rs`:
+- [x] **Step 1:** Write failing tests in `tests/queue.rs`:
   - `delivers_blocks_in_order_with_their_bytes`
   - `push_silence_zero_fills_and_flags_silent`
   - `rejects_mismatched_and_oversize_blocks`
   - `pushes_drop_when_consumer_does_not_recycle`: 4 slots of 480 frames; push 6 without recycling. Expect 4 queued, 2 dropped, `dropped_frames` 960.
   - `flags_the_block_after_a_drop_as_discontinuous`
   - `recycled_buffers_are_reused`
-- [ ] **Step 2:** Write the failing test in `tests/queue-allocation.rs`: `push_pop_and_recycle_do_not_allocate`. It uses a counting `#[global_allocator]` with a `const`-initialized thread-local counter. Warm up for 10 cycles, then run 10,000 push → pop → recycle cycles, recycling out of order with two blocks in flight. Assert zero allocations on the test thread.
-- [ ] **Step 3:** Run `cargo test -p recorder-core --test queue --test queue-allocation`. Expected: compile failure.
-- [ ] **Step 4:** Implement with `rtrb`.
-- [ ] **Step 5:** Run both tests. Expected: PASS. If the allocation test fails because of `rtrb`, record the evidence and pick another library. Do not write a lock-free structure (architecture section 2).
-- [ ] **Step 6:** Commit `feat: add an allocation-free bounded block queue`.
+- [x] **Step 2:** Write the failing test in `tests/queue-allocation.rs`: `push_pop_and_recycle_do_not_allocate`. It uses a counting `#[global_allocator]` with a `const`-initialized thread-local counter. Warm up for 10 cycles, then run 10,000 push → pop → recycle cycles, recycling out of order with two blocks in flight. Assert zero allocations on the test thread.
+- [x] **Step 3:** Run `cargo test -p recorder-core --test queue --test queue-allocation`. Expected: compile failure.
+- [x] **Step 4:** Implement with `rtrb`.
+- [x] **Step 5:** Run both tests. Expected: PASS. If the allocation test fails because of `rtrb`, record the evidence and pick another library. Do not write a lock-free structure (architecture section 2).
+- [x] **Step 6:** Commit `feat: add an allocation-free bounded block queue`.
 
 ### Task 7: Capture source trait and synthetic source (P03.1, P03.2)
 
@@ -203,7 +203,7 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
   - `InvalidTimestamp` sets `timestamp_invalid` with `first_frame_host_time_ns: None`.
   - `Disconnect` sends `Disconnected { at_frame }` and emits nothing further.
 
-- [ ] **Step 1:** Write failing tests in `tests/synthetic.rs`:
+- [x] **Step 1:** Write failing tests in `tests/synthetic.rs`:
   - `pumps_sequential_blocks_with_contiguous_frames`
   - `sine_round_trips_through_conversion_within_one_i16_step` (1 kHz, amplitude 0.5, mono I16 at 48 kHz; decoded with `convert_to_f32`; max error ≤ 1/32,768)
   - `host_time_without_drift_is_exact` (48,000 frames at 48 kHz from 1,000 → 1,000 + 1,000,000,000)
@@ -213,10 +213,10 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
   - `disconnect_stops_emission_and_reports_the_frame`
   - `stop_is_idempotent_and_sends_ended_once`
   - `pump_before_start_is_an_error`
-- [ ] **Step 2:** Run `cargo test -p recorder-core --test synthetic`. Expected: compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run the test. Expected: PASS. Run the gate. Expected: `PASS rust-shared`.
-- [ ] **Step 5:** Commit `feat: add the capture source trait and a deterministic synthetic source`.
+- [x] **Step 2:** Run `cargo test -p recorder-core --test synthetic`. Expected: compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run the test. Expected: PASS. Run the gate. Expected: `PASS rust-shared`.
+- [x] **Step 5:** Commit `feat: add the capture source trait and a deterministic synthetic source`.
 
 ### Task 8: Metering and snapshot slot (P03.4)
 
@@ -237,7 +237,7 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
   - `publish(&self, snapshot: MeterSnapshot)` uses `try_lock` and never blocks; on contention it keeps the newer snapshot pending and publishes it on the next call.
   - `take_latest(&self) -> Option<MeterSnapshot>`.
 
-- [ ] **Step 1:** Write failing tests (0.001 dB tolerance unless stated):
+- [x] **Step 1:** Write failing tests (0.001 dB tolerance unless stated):
   - `dbfs_of_full_scale_is_zero`
   - `dbfs_of_half_scale_is_minus_6_0206`
   - `dbfs_of_silence_is_the_floor`
@@ -248,17 +248,17 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
   - `emits_a_window_every_100_ms` (4,799 frames → None; 1 more → `end_frame` 4,800, `sequence` 1)
   - `reports_the_signed_envelope` (samples [-0.25, 0.75, 0.1] padded to a window → min -0.25, max 0.75)
   - `snapshot_slot_keeps_only_the_latest`
-- [ ] **Step 2:** Run `cargo test -p recorder-core --test meter`. Expected: compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run the test. Expected: PASS. Run the gate. Expected: `PASS rust-shared`.
-- [ ] **Step 5:** Commit `feat: add 100 ms metering and a latest-value snapshot slot`.
+- [x] **Step 2:** Run `cargo test -p recorder-core --test meter`. Expected: compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run the test. Expected: PASS. Run the gate. Expected: `PASS rust-shared`.
+- [x] **Step 5:** Commit `feat: add 100 ms metering and a latest-value snapshot slot`.
 
 ### Task 9: Contract record and checkpoint
 
 **Files:**
 - Modify: `doc/specs/software-architecture-desktop-audio-recorder.md` (section 2), `doc/status.md`, `doc/plan/desktop-audio-recorder-work-breakdown.md` (P03 link)
 
-- [ ] **Step 1:** Add to architecture section 2 a short "Implemented contract (P03a)" table that maps each `AudioBlock` field to `BlockHeader` and names the accepted types (`AudioFormat`, `ChannelLayout`, `BlockFlags`, `CaptureEvent`, `CaptureError`, `CaptureSource`, `BlockProducer`/`BlockConsumer`, `MeterSnapshot`). Record `rtrb` as the selected queue library with the allocation-test evidence.
-- [ ] **Step 2:** Run the full local sequence (`npm ci && npm run build && cargo fmt --all -- --check && cargo clippy --locked --workspace --all-targets -- -D warnings && mkdir -p coverage && cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json && npm run lint && npm run typecheck && npm run test:coverage && npm run coverage:gate`). Expected: exit 0.
-- [ ] **Step 3:** Push the branch and watch CI. Expected: green on the three OSes.
-- [ ] **Step 4:** Update the `doc/status.md` P03a entry with the plan section 4 template, then commit `docs: record P03a contract and checkpoint`.
+- [x] **Step 1:** Add to architecture section 2 a short "Implemented contract (P03a)" table that maps each `AudioBlock` field to `BlockHeader` and names the accepted types (`AudioFormat`, `ChannelLayout`, `BlockFlags`, `CaptureEvent`, `CaptureError`, `CaptureSource`, `BlockProducer`/`BlockConsumer`, `MeterSnapshot`). Record `rtrb` as the selected queue library with the allocation-test evidence.
+- [x] **Step 2:** Run the full local sequence (`npm ci && npm run build && cargo fmt --all -- --check && cargo clippy --locked --workspace --all-targets -- -D warnings && mkdir -p coverage && cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json && npm run lint && npm run typecheck && npm run test:coverage && npm run coverage:gate`). Expected: exit 0.
+- [x] **Step 3:** Push the branch and watch CI. Expected: green on the three OSes.
+- [x] **Step 4:** Update the `doc/status.md` P03a entry with the plan section 4 template, then commit `docs: record P03a contract and checkpoint`.
