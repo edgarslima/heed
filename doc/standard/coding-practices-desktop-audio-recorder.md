@@ -100,7 +100,7 @@ The policy applies to code written by the team and shipped in the app, including
 
 ### CI reference commands
 
-On bootstrap, pin versions and create scripts with names in English. `npm run coverage:gate` applies the gate rules above to the collected reports. In CI, run `npm ci` and `npm run build` before the Cargo steps, because the Tauri crate embeds the built frontend at compile time. The coverage script should read the reports and apply the exact comparison above. Example Rust and frontend collection, assuming the `coverage/` directory is prepared and the `test:coverage` script is configured.
+On bootstrap, pin versions and create scripts with names in English. `npm run coverage:gate` applies the gate rules above to the collected reports. In CI, run `npm ci` and `npm run build` before the Cargo steps: release builds of the Tauri crate embed the built frontend (`frontendDist`) at compile time, while debug builds load it from `devUrl`. The coverage script should read the reports and apply the exact comparison above. Example Rust and frontend collection, assuming the `coverage/` directory is prepared and the `test:coverage` script is configured.
 
 ```sh
 cargo fmt --all -- --check
