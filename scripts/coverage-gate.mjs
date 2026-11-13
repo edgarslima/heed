@@ -1,15 +1,26 @@
 // Coverage gate for the rules in doc/standard/coding-practices-desktop-audio-recorder.md
 // section 6: every active scope must have covered * 100 > total * 80 on integer counts.
 // Missing, empty, or invalid reports, scopes with zero measured items, and production
-// files absent from a report all fail. Uses Node built-ins only.
+// files absent from a report all fail, as do invalid scope definitions, unjustified
+// exclusions, coverage pragmas in production sources, and pending scopes that already
+// have measured code. Uses Node built-ins only.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { isAbsolute, join, matchesGlob, relative, sep } from "node:path";
-import { argv, cwd, exit } from "node:process";
-import { fileURLToPath } from "node:url";
+import { cwd, exit } from "node:process";
 
 const THRESHOLD_PERCENT = 80;
+const KINDS = ["llvm-cov", "vitest", "xccov"];
+const STATUSES = ["active", "pending"];
+const METRICS = ["lines", "branches"];
+const GLOB_CHARACTERS = /[*?[\]{}]/;
+// In-source markers that hide code from V8/Istanbul or llvm-cov instrumentation.
+const COVERAGE_PRAGMAS = [
+  /\b(?:v8|c8|istanbul)\s+ignore\b/,
+  /cfg\(\s*(?:not\(\s*)?coverage\b/,
+  /\bcoverage\s*\(\s*off\s*\)/,
+];
 
 /** True when covered / total is strictly above the threshold, using integers only. */
 export function passesThreshold(covered, total) {
@@ -94,23 +105,113 @@ function inScope(scope, path) {
   return included && !excluded;
 }
 
-/** Applies the gate rules to one scope. sourceFiles are repository-relative paths. */
-export function evaluateScope(scope, report, sourceFiles) {
-  const notes = (scope.justifiedExclusions ?? []).map(
-    ({ path, reason }) => `excluded ${path}: ${reason}`,
-  );
-  const base = { name: scope.name, metrics: [], reasons: [], notes };
+function validateScope(scope, sourceFiles) {
+  const reasons = [];
+  if (!KINDS.includes(scope.kind)) reasons.push(`unknown kind: ${scope.kind}`);
+  if (!STATUSES.includes(scope.status)) {
+    reasons.push(`unknown status: ${scope.status}`);
+  }
+  if (!Array.isArray(scope.include) || scope.include.length === 0) {
+    reasons.push("include must list at least one glob");
+  }
+  if (!Array.isArray(scope.metrics) || scope.metrics.length === 0) {
+    reasons.push("metrics must list at least one metric");
+  } else {
+    for (const metric of scope.metrics.filter((m) => !METRICS.includes(m))) {
+      reasons.push(`unknown metric: ${metric}`);
+    }
+  }
+  for (const entry of scope.justifiedExclusions ?? []) {
+    const path = String(entry.path);
+    if (GLOB_CHARACTERS.test(path)) {
+      reasons.push(`justified exclusion must be a literal path: ${path}`);
+    } else if (!sourceFiles.includes(path)) {
+      reasons.push(`justified exclusion matches no source file: ${path}`);
+    }
+    if (typeof entry.reason !== "string" || entry.reason.trim() === "") {
+      reasons.push(`justified exclusion needs a reason: ${path}`);
+    }
+  }
+  return reasons;
+}
+
+function exclusionNotes(scope, report, sourceFiles) {
+  const notes = [];
+  for (const pattern of scope.exclude ?? []) {
+    const removed = sourceFiles.filter(
+      (file) =>
+        scope.include.some((glob) => matchesGlob(file, glob)) &&
+        matchesGlob(file, pattern),
+    );
+    if (removed.length > 0) {
+      notes.push(`excluded by rule ${pattern}: ${removed.join(", ")}`);
+    }
+  }
+  const primary = scope.metrics?.[0];
+  for (const { path, reason } of scope.justifiedExclusions ?? []) {
+    const counts = report.files?.[path]?.[primary];
+    const measured = counts
+      ? `${primary} ${counts.covered}/${counts.total}`
+      : "not in report";
+    notes.push(`excluded ${path} (${measured}): ${reason}`);
+  }
+  return notes;
+}
+
+function readSourceFromDisk(path) {
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Applies the gate rules to one scope. sourceFiles are repository-relative paths;
+ * readSource returns a source file's text for the coverage pragma check.
+ */
+export function evaluateScope(
+  scope,
+  report,
+  sourceFiles,
+  readSource = readSourceFromDisk,
+) {
+  const base = { name: scope.name, metrics: [], reasons: [], notes: [] };
+  const invalid = validateScope(scope, sourceFiles);
+  if (invalid.length > 0) {
+    return { ...base, status: "fail", reasons: invalid };
+  }
+  const notes = exclusionNotes(scope, report, sourceFiles);
+
   if (scope.status === "pending") {
-    return { ...base, status: "pending" };
+    // A pending scope must be activated as soon as its report measures real code.
+    const measured = Object.keys(report.files ?? {}).some(
+      (path) =>
+        inScope(scope, path) &&
+        (report.files[path][scope.metrics[0]]?.total ?? 0) > 0,
+    );
+    return measured
+      ? {
+          ...base,
+          notes,
+          status: "fail",
+          reasons: ["pending scope has measured code; activate it"],
+        }
+      : { ...base, notes, status: "pending" };
   }
   if ("error" in report) {
-    return { ...base, status: "fail", reasons: [report.error] };
+    return { ...base, notes, status: "fail", reasons: [report.error] };
   }
 
   const reported = Object.keys(report.files).filter((path) =>
     inScope(scope, path),
   );
   const reasons = [];
+  for (const path of sourceFiles.filter((file) => inScope(scope, file))) {
+    if (COVERAGE_PRAGMAS.some((pragma) => pragma.test(readSource(path)))) {
+      reasons.push(`coverage pragma in ${path}`);
+    }
+  }
   for (const path of sourceFiles.filter((file) => inScope(scope, file))) {
     if (!reported.includes(path)) {
       reasons.push(`production file missing from report: ${path}`);
@@ -146,6 +247,7 @@ export function evaluateScope(scope, report, sourceFiles) {
 
   return {
     ...base,
+    notes,
     metrics,
     reasons,
     status: reasons.length === 0 ? "pass" : "fail",
@@ -172,8 +274,7 @@ function main() {
 
   let failed = false;
   for (const scope of scopes) {
-    const report =
-      scope.status === "pending" ? { files: {} } : loadReport(scope, root);
+    const report = loadReport(scope, root);
     const result = evaluateScope(scope, report, sourceFiles);
     const counts = result.metrics
       .map((m) => `${m.metric} ${m.covered}/${m.total}`)
@@ -188,6 +289,8 @@ function main() {
   exit(failed ? 1 : 0);
 }
 
-if (argv[1] === fileURLToPath(import.meta.url)) {
+// import.meta.main is true only when this file is the entry point, including when it
+// is started through a symlinked path.
+if (import.meta.main) {
   main();
 }

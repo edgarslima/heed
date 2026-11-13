@@ -1,6 +1,6 @@
 # Desktop Audio Recorder P00 Bootstrap Plan
 
-**Purpose:** Step-level implementation plan for task P00 (bootstrap). **Audience:** The engineer or AI agent executing P00. **Status:** Executed on 2026-11-13; checkpoint and evidence in `doc/status.md`. Last reviewed: 2026-11-13.
+**Purpose:** Step-level implementation plan for task P00 (bootstrap). **Audience:** The engineer or AI agent executing P00. **Status:** Executed on 2026-11-13. Steps are kept as planned; deviations, evidence, and the checkpoint are recorded in the P00 entry of `doc/status.md`. Last reviewed: 2026-11-13.
 
 Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) · [Construction plan](desktop-audio-recorder-construction-plan.md) · [Software architecture](../specs/software-architecture-desktop-audio-recorder.md) · [Coding practices](../standard/coding-practices-desktop-audio-recorder.md) · [Status](../status.md)
 

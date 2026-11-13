@@ -29,7 +29,7 @@
       "justifiedExclusions": [
         {
           "path": "src-tauri/src/main.rs",
-          "reason": "Entry point that runs the app on the real window event loop, which unit tests cannot start. The app composition lives in lib.rs (configure) and is tested on the Tauri mock runtime; main.rs is verified by the tauri dev and packaged-window checks (P00 Task 2 and Task 7). Pending owner review."
+          "reason": "Entry point that runs the app on the real window event loop, which unit tests cannot start. It only calls configure and exit_code in lib.rs, which are tested on the Tauri mock runtime; main.rs is verified by the tauri dev and packaged-window checks (P00 Task 2 and Task 7). Pending owner review."
         }
       ]
     },

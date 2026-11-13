@@ -10,3 +10,16 @@ use tauri::{Builder, Runtime};
 pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     builder
 }
+
+/// Maps the result of running the app to the process exit code.
+///
+/// A failure prints the stable code `appStartFailed` and the error to stderr.
+pub fn exit_code(result: Result<(), tauri::Error>) -> std::process::ExitCode {
+    match result {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("appStartFailed: {error}");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}

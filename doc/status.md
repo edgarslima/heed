@@ -90,8 +90,8 @@ Resolved by the project owner on 2026-11-13.
   - Toolchain pins (`rust-toolchain.toml` 1.100.0, `.nvmrc` 24, `.npmrc` exact versions), Cargo workspace with `crates/recorder-core` (no code yet) and `src-tauri`, workspace lints (`unsafe_op_in_unsafe_fn` denied; `unwrap`, `expect`, `panic` rejected by clippy outside tests).
   - Tauri 2 skeleton without demo code: product `Heed`, identifier `pro.edgarlima.heed`, window 560 × 600, minimum 420 × 480, CSP `default-src 'self'`, capability `core:default` only.
   - Frontend tooling: strict `tsconfig`, ESLint `strictTypeChecked` with `no-explicit-any` and `no-floating-promises`, Prettier, Vitest with jsdom and V8 coverage; `mountApp` app shell.
-  - `src-tauri/src/lib.rs` exposes `configure`, tested on the Tauri mock runtime; `main.rs` is the window entry point.
-  - Coverage gate `scripts/coverage-gate.mjs` with scopes in `scripts/coverage-scopes.json`; integer rule `covered * 100 > total * 80`.
+  - `src-tauri/src/lib.rs` exposes `configure` and `exit_code`, tested on the Tauri mock runtime; `main.rs` is a one-line window entry point.
+  - Coverage gate `scripts/coverage-gate.mjs` with scopes in `scripts/coverage-scopes.json`; integer rule `covered * 100 > total * 80`. It also validates the scope schema, requires literal paths and reasons for justified exclusions, prints every exclusion with its measured counts, fails on coverage pragmas in production sources, and fails a pending scope whose report already measures code.
   - CI workflow per OS; `.gitattributes` forces LF; Windows test binaries embed the app manifest (`src-tauri/build.rs`).
 - Evidence:
   - CI run [43498018299](https://github.com/edgarslima/heed/actions/runs/43498018299): success on macOS 15, Windows 2025, Ubuntu 24.04. Gate: frontend lines 6/6 and branches 2/2, rust-tauri lines 3/3, rust-shared and swift-bridge pending.
@@ -101,4 +101,14 @@ Resolved by the project owner on 2026-11-13.
   - **Owner review:** `src-tauri/src/main.rs` is a justified coverage exclusion (window entry point; composition tested through `configure`).
   - Packaged-window check on Windows and Linux (no benches yet).
   - Merge `initial_dev` into `dev` after review.
+- Deviations from the P00 plan (each decided and verified during execution):
+  - Task 2: dropped template dependencies not used in P00 (`@tauri-apps/api`, `@tauri-apps/plugin-opener`, `serde`, `serde_json`), demo assets, `README.md`, and `.vscode/`; moved `[profile.release]` to the workspace root; `withGlobalTauri` is `false`.
+  - Task 3: `mountApp` was created in Task 3 after its failing test instead of in Task 2; Prettier ignores `doc/`.
+  - Task 4: instead of `run() -> Result` in `lib.rs`, the app composition is `configure<R: Runtime>(Builder<R>) -> Builder<R>` and the exit mapping is `exit_code(Result<(), tauri::Error>) -> ExitCode`, both tested; `main.rs` only calls them. The mobile entry point attribute was removed (desktop only).
+  - Task 5: test reports are built from literals in temporary directories instead of committed fixture files; the scope schema gained `exclude` (rule-based exclusions such as tests) and `justifiedExclusions` (reviewed exceptions with a reason). The gate was hardened after the final review (see Changes).
+  - Task 6: the CI build order rationale was corrected (only release builds embed `frontendDist`); CI creates `coverage/` before `cargo llvm-cov`, pins `cargo-llvm-cov` 0.9.1, and Windows test binaries embed the app manifest. `.gitattributes` forces LF.
+  - Task 7: the "networking disabled" check was replaced by `lsof` showing no sockets for the app process; the full offline check stays in P07.5 and P09.3.
+- Owner actions:
+  - Approve or reject the `src-tauri/src/main.rs` coverage exclusion; on approval, replace "Pending owner review" in `scripts/coverage-scopes.json` with the approver and date.
+  - Enable branch protection on `main` and `dev` with the `verify` CI checks required, so coding practices section 6 rule 5 is enforced at merge.
 - Next step — review P00, merge into `dev`, then write the P01 or P03a step plan.
