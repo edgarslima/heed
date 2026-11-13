@@ -52,7 +52,7 @@ Step plan: [P00 bootstrap plan](desktop-audio-recorder-p00-bootstrap.md).
 | P00.3 | TypeScript lint, format, typecheck, and Vitest coverage setup | npm scripts `lint`, `typecheck`, `test`, `test:coverage` | Commands pass |
 | P00.4 | Rust lint policy and `cargo llvm-cov` collection | `coverage/rust.json` | `unsafe_op_in_unsafe_fn` denied; clippy clean |
 | P00.5 | Coverage gate script with the four required fixtures | `npm run coverage:gate` | Fixtures: pass, fail at exactly 80%, missing report, missing production file |
-| P00.6 | CI workflow for macOS, Windows, Ubuntu | CI job names | Local commands pass; remote run pending until a remote exists |
+| P00.6 | CI workflow for macOS, Windows, Ubuntu | CI job names | Local commands pass; first remote run on GitHub Actions is green |
 | P00.7 | Basic packaged window on M | Packaging baseline | `.app` opens; versions and SHA-256 recorded |
 
 ### P01 · macOS proof — host M, needs the owner present for permission prompts and playback
@@ -243,7 +243,7 @@ Risk: a contract change found in P03.7 can ripple into P04 and P07. The contract
 | # | Decision | Blocks | Outcome (2026-11-13) |
 | --- | --- | --- | --- |
 | 1 | Product name and app identifier (reverse-DNS). macOS privacy grants are tied to the identifier and signing identity; changing it later resets permissions mid-P01. | P00.2 | **Decided:** product `Heed`, identifier `pro.edgarlima.heed`, window title "Heed". Local desktop project; no DNS reservation. |
-| 2 | Git remote and CI host. | P00.6 remote run | **Open.** Default: GitHub Actions workflow file written; remote run pending. |
+| 2 | Git remote and CI host. | P00.6 remote run | **Decided:** public GitHub repository `edgarslima/heed`, CI on GitHub Actions. Branches `main` (stable), `dev` (integration), `initial_dev` (P00). |
 | 3 | Availability of the Windows 11 x64 and Ubuntu 24.04 benches. | P02, P10 | **Decided:** Mac only for now. Follow the Mac-only path; P02, P03.7, P08, P09, P10, and P11 stay blocked until benches exist. |
 | 4 | Approval of the P03 split into P03a, P03b, and P03.7 (section 6). | P03 start | **Approved.** The construction plan dependency table is updated. |
 | 5 | Speech corpus language for the WER test (AC-08). | P05.3 | **Decided:** both PT-BR and American English, scored separately. |

@@ -41,15 +41,15 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 **Interfaces:**
 - Produces: workspace members `src-tauri` and `crates/recorder-core`; `[workspace.lints]` that members inherit with `[lints] workspace = true`.
 
-- [ ] **Step 1:** Run `git init -b main` in the repository root.
-- [ ] **Step 2:** Write `.gitignore` with `target/`, `node_modules/`, `dist/`, `coverage/`, `evidence/**/*.wav`, `.DS_Store`.
+- [x] **Step 1:** Run `git init -b main` in the repository root. Done in the initial commit `208539a`; remote `origin` is https://github.com/edgarslima/heed. P00 work happens on branch `initial_dev`.
+- [x] **Step 2:** Write `.gitignore` with `target/`, `node_modules/`, `dist/`, `coverage/`, `evidence/**/*.wav`, `.DS_Store`. Done in the initial commit, which also ignores `.env*`, logs, and local assistant settings.
 - [ ] **Step 3:** Write `rust-toolchain.toml` with channel `1.100.0`, components `rustfmt`, `clippy`, `llvm-tools-preview`, and targets `aarch64-apple-darwin`, `x86_64-apple-darwin`. Write `.nvmrc` (`24`) and `.npmrc` (`save-exact=true`).
 - [ ] **Step 4:** Write the workspace `Cargo.toml`: `resolver = "3"`, members `["crates/recorder-core"]` (Task 2 adds `src-tauri`), `[workspace.package] edition = "2024"`, and lints:
   - `[workspace.lints.rust]` `unsafe_op_in_unsafe_fn = "deny"`
   - `[workspace.lints.clippy]` `unwrap_used = "warn"`, `expect_used = "warn"`, `panic = "warn"` (CI runs clippy with `-D warnings`)
 - [ ] **Step 5:** Create `recorder-core` as a library crate with a crate-level Rustdoc comment stating that it has no Tauri dependency. No other code yet; its coverage scope is pending.
 - [ ] **Step 6:** Run `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets -- -D warnings`. Expected: both pass.
-- [ ] **Step 7:** Commit `chore: add workspace foundation and toolchain pins`.
+- [ ] **Step 7:** Commit `chore: add workspace foundation and toolchain pins` on `initial_dev`.
 
 ### Task 2: Tauri skeleton (P00.2)
 
@@ -133,7 +133,7 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 
 - [ ] **Step 1:** Define one job per OS: `macos-15`, `windows-2025`, `ubuntu-24.04`. Install the Linux WebKitGTK prerequisites listed in the Tauri prerequisites page. Use Node from `.nvmrc` and Rust from `rust-toolchain.toml`.
 - [ ] **Step 2:** Steps per job: `npm ci`, `npm run build`, install `cargo-llvm-cov`, `cargo fmt --all -- --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json`, `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run coverage:gate`. Upload `coverage/` as an artifact. The frontend build runs first because Tauri embeds `frontendDist` (`dist/`, git-ignored) at compile time, so Rust steps fail on a clean checkout without it. Confirm this against the Tauri 2 configuration docs while writing the job, and keep a comment in the workflow explaining the order.
-- [ ] **Step 3:** Run the same commands locally on M. Expected: all pass. Record "remote CI run: pending, no remote" in `doc/status.md` until a remote exists.
+- [ ] **Step 3:** Run the same commands locally on M. Expected: all pass. Push `initial_dev` and confirm the GitHub Actions run with `gh run watch`; record the run URL and result in `doc/status.md`.
 - [ ] **Step 4:** Commit `ci: add lint, test, coverage, and build jobs per OS`.
 
 ### Task 7: Packaged window and checkpoint (P00.7)
