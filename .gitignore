@@ -1,0 +1,27 @@
+# Build output
+target/
+dist/
+node_modules/
+
+# Coverage and test reports
+coverage/
+
+# Validation artifacts: keep notes and JSON, never commit audio
+evidence/**/*.wav
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local assistant settings
+.claude/settings.local.json
+
+# OS and editor files
+.DS_Store
+.idea/
+*.swp

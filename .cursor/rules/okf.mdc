@@ -1,0 +1,14 @@
+---
+description: Repository documentation policy for OKF and canonical doc structure
+alwaysApply: true
+---
+
+# OKF policy
+
+This rule is a pointer; the canonical rules live in `doc/`.
+
+- Start from `doc/README.md`, `doc/okf/agent-directives.md`, and `doc/status.md`.
+- Follow `doc/standard/coding-practices-desktop-audio-recorder.md` for every code, script, and test change.
+- Write all repository-facing text and code in American English.
+- Recover state from AI Memory and `doc/status.md` at task start; record checkpoints in `doc/status.md`.
+- Update the canonical document in `doc/` instead of expanding this file.
