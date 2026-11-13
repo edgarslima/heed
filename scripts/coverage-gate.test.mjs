@@ -364,6 +364,86 @@ describe("scope validation", () => {
   });
 });
 
+describe("declarative files", () => {
+  const sharedScope = {
+    ...rustScope,
+    name: "rust-shared",
+    include: ["crates/**/src/**/*.rs"],
+    declarativeFiles: [
+      { path: "crates/core/src/lib.rs", reason: "module declarations only" },
+    ],
+  };
+  const sources = ["crates/core/src/lib.rs", "crates/core/src/format.rs"];
+
+  it("accepts a declarative file that is absent from the report", () => {
+    const report = {
+      files: {
+        "crates/core/src/format.rs": { lines: { covered: 9, total: 10 } },
+      },
+    };
+
+    const result = evaluateScope(sharedScope, report, sources);
+
+    expect(result.status).toBe("pass");
+  });
+
+  it("fails a declarative file that the report measures", () => {
+    const report = {
+      files: {
+        "crates/core/src/format.rs": { lines: { covered: 9, total: 10 } },
+        "crates/core/src/lib.rs": { lines: { covered: 0, total: 4 } },
+      },
+    };
+
+    const result = evaluateScope(sharedScope, report, sources);
+
+    expect(result.status).toBe("fail");
+    expect(result.reasons.join(" ")).toContain(
+      "declarative file has measured code: crates/core/src/lib.rs",
+    );
+  });
+
+  it("rejects a declarative file with a glob path, missing reason, or no matching source", () => {
+    const report = {
+      files: {
+        "crates/core/src/format.rs": { lines: { covered: 9, total: 10 } },
+      },
+    };
+    for (const [entry, message] of [
+      [
+        { path: "crates/core/src/*.rs", reason: "declarations" },
+        "declarative file must be a literal path",
+      ],
+      [{ path: "crates/core/src/lib.rs" }, "declarative file needs a reason"],
+      [
+        { path: "crates/core/src/gone.rs", reason: "declarations" },
+        "declarative file matches no source file",
+      ],
+    ]) {
+      const scope = { ...sharedScope, declarativeFiles: [entry] };
+
+      const result = evaluateScope(scope, report, sources);
+
+      expect(result.status).toBe("fail");
+      expect(result.reasons.join(" ")).toContain(message);
+    }
+  });
+
+  it("prints a note for each declarative file", () => {
+    const report = {
+      files: {
+        "crates/core/src/format.rs": { lines: { covered: 9, total: 10 } },
+      },
+    };
+
+    const result = evaluateScope(sharedScope, report, sources);
+
+    expect(result.notes).toContain(
+      "declarative crates/core/src/lib.rs: module declarations only",
+    );
+  });
+});
+
 describe("command line", () => {
   it("exits 1 with a missing report when run through a symlinked path", () => {
     const repo = mkdtempSync(join(tmpdir(), "coverage-gate-repo-"));

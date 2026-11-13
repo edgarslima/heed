@@ -105,6 +105,22 @@ function inScope(scope, path) {
   return included && !excluded;
 }
 
+// Audited path lists (justified exclusions, declarative files) need literal paths
+// that exist in the source inventory and a non-empty reason.
+function validateAuditedPaths(entries, label, sourceFiles, reasons) {
+  for (const entry of entries ?? []) {
+    const path = String(entry.path);
+    if (GLOB_CHARACTERS.test(path)) {
+      reasons.push(`${label} must be a literal path: ${path}`);
+    } else if (!sourceFiles.includes(path)) {
+      reasons.push(`${label} matches no source file: ${path}`);
+    }
+    if (typeof entry.reason !== "string" || entry.reason.trim() === "") {
+      reasons.push(`${label} needs a reason: ${path}`);
+    }
+  }
+}
+
 function validateScope(scope, sourceFiles) {
   const reasons = [];
   if (!KINDS.includes(scope.kind)) reasons.push(`unknown kind: ${scope.kind}`);
@@ -121,17 +137,18 @@ function validateScope(scope, sourceFiles) {
       reasons.push(`unknown metric: ${metric}`);
     }
   }
-  for (const entry of scope.justifiedExclusions ?? []) {
-    const path = String(entry.path);
-    if (GLOB_CHARACTERS.test(path)) {
-      reasons.push(`justified exclusion must be a literal path: ${path}`);
-    } else if (!sourceFiles.includes(path)) {
-      reasons.push(`justified exclusion matches no source file: ${path}`);
-    }
-    if (typeof entry.reason !== "string" || entry.reason.trim() === "") {
-      reasons.push(`justified exclusion needs a reason: ${path}`);
-    }
-  }
+  validateAuditedPaths(
+    scope.justifiedExclusions,
+    "justified exclusion",
+    sourceFiles,
+    reasons,
+  );
+  validateAuditedPaths(
+    scope.declarativeFiles,
+    "declarative file",
+    sourceFiles,
+    reasons,
+  );
   return reasons;
 }
 
@@ -154,6 +171,9 @@ function exclusionNotes(scope, report, sourceFiles) {
       ? `${primary} ${counts.covered}/${counts.total}`
       : "not in report";
     notes.push(`excluded ${path} (${measured}): ${reason}`);
+  }
+  for (const { path, reason } of scope.declarativeFiles ?? []) {
+    notes.push(`declarative ${path}: ${reason}`);
   }
   return notes;
 }
@@ -207,13 +227,21 @@ export function evaluateScope(
     inScope(scope, path),
   );
   const reasons = [];
+  // llvm-cov omits files without functions (module declarations only); those are
+  // listed as declarative and must stay unmeasured.
+  const declarative = (scope.declarativeFiles ?? []).map((entry) => entry.path);
+  for (const path of declarative) {
+    if ((report.files[path]?.lines?.total ?? 0) > 0) {
+      reasons.push(`declarative file has measured code: ${path}`);
+    }
+  }
   for (const path of sourceFiles.filter((file) => inScope(scope, file))) {
     if (COVERAGE_PRAGMAS.some((pragma) => pragma.test(readSource(path)))) {
       reasons.push(`coverage pragma in ${path}`);
     }
   }
   for (const path of sourceFiles.filter((file) => inScope(scope, file))) {
-    if (!reported.includes(path)) {
+    if (!reported.includes(path) && !declarative.includes(path)) {
       reasons.push(`production file missing from report: ${path}`);
     }
   }
