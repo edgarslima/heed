@@ -94,7 +94,7 @@ Resolved by the project owner on 2026-11-13.
   - Coverage gate `scripts/coverage-gate.mjs` with scopes in `scripts/coverage-scopes.json`; integer rule `covered * 100 > total * 80`. It also validates the scope schema, requires literal paths and reasons for justified exclusions, prints every exclusion with its measured counts, fails on coverage pragmas in production sources, and fails a pending scope whose report already measures code.
   - CI workflow per OS; `.gitattributes` forces LF; Windows test binaries embed the app manifest (`src-tauri/build.rs`).
 - Evidence:
-  - CI run [43498018299](https://github.com/edgarslima/heed/actions/runs/43498018299): success on macOS 15, Windows 2025, Ubuntu 24.04. Gate: frontend lines 6/6 and branches 2/2, rust-tauri lines 3/3, rust-shared and swift-bridge pending.
+  - CI run [43501415439](https://github.com/edgarslima/heed/actions/runs/43501415439) on `1d3cba8`: success on macOS 15, Windows 2025, Ubuntu 24.04. Gate: frontend lines 6/6 and branches 2/2, rust-tauri lines 9/9 (`main.rs` excluded with 0/6 shown), rust-shared and swift-bridge pending. Gate tests: 21; total frontend and script tests: 24.
   - Local bench: the same command sequence passes; `tauri dev` window "Heed" 560 × 600, clamps to 420 × 480.
   - Packaged app: [evidence/p00/packaging.md](../evidence/p00/packaging.md).
 - Pending:
