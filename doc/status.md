@@ -122,8 +122,8 @@ Resolved by the project owner on 2026-11-13.
   - Coverage gate: `declarativeFiles` for files llvm-cov omits (module declarations, a trait without bodies), each with a reason and a check that they stay unmeasured; `rust-shared` scope active.
   - Architecture section 2 records the implemented contract.
 - Evidence:
-  - CI run [43505291717](https://github.com/edgarslima/heed/actions/runs/43505291717): success on macOS 15, Windows 2025, Ubuntu 24.04; gate `rust-shared` lines 444/453 on all three.
-  - 56 Rust tests and 28 frontend and script tests pass locally. The allocation test reports 0 allocations over 20,000 queue operations; a mutation check (an injected allocation) made it fail with 20,000.
+  - CI run [43508152103](https://github.com/edgarslima/heed/actions/runs/43508152103) on `0c249e6` (after the review fixes): success on macOS 15, Windows 2025, Ubuntu 24.04; gate `rust-shared` lines 447/456.
+  - 61 Rust tests and 28 frontend and script tests pass locally. The allocation test reports 0 allocations over 20,000 queue operations; a mutation check (an injected allocation) made it fail with 20,000.
 - Deviations from the P03a plan:
   - Integration test files allow `clippy::panic`, `unwrap_used`, and `expect_used` with a stated reason; clippy's test exemptions do not cover helpers in `tests/`.
   - `rtrb` was added in Task 6 instead of Task 5; `capture/source.rs` is a declarative file.
