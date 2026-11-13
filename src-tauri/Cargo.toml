@@ -1,0 +1,20 @@
+[package]
+name = "heed"
+version = "0.1.0"
+description = "Heed desktop audio recorder"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+# The `_lib` suffix keeps the library name distinct from the binary name,
+# which avoids an output name collision on Windows (cargo issue #8519).
+name = "heed_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

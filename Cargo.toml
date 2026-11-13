@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/recorder-core"]
+members = ["crates/recorder-core", "src-tauri"]
 
 [workspace.package]
 edition = "2024"
@@ -15,3 +15,11 @@ unsafe_op_in_unsafe_fn = "deny"
 unwrap_used = "warn"
 expect_used = "warn"
 panic = "warn"
+
+# Release profile for the app binary. Profiles only apply from the workspace root.
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
