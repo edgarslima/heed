@@ -29,6 +29,10 @@
         {
           "path": "crates/recorder-core/src/capture/mod.rs",
           "reason": "Module declarations only; llvm-cov reports no functions."
+        },
+        {
+          "path": "crates/recorder-core/src/capture/source.rs",
+          "reason": "Trait and struct declarations only, without function bodies; llvm-cov reports no functions."
         }
       ]
     },
