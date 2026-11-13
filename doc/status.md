@@ -8,7 +8,7 @@ Each entry follows the checkpoint template in section 4 of the construction plan
 
 ## Next task
 
-P00 · Bootstrap, following the [P00 bootstrap plan](plan/desktop-audio-recorder-p00-bootstrap.md), on branch `initial_dev`. Task 1 steps 1–2 are done; resume at Task 1 step 3.
+P00 is ready for review on `initial_dev`. After review and merge into `dev`, two lanes can start (work breakdown section 5): **P01 · macOS proof** (needs the owner present for permission prompts and audible playback) and **P03a · common engine** (pure logic, synthetic source). Each phase gets its step plan in `doc/plan/` before work starts.
 
 ## Repository
 
@@ -18,7 +18,7 @@ P00 · Bootstrap, following the [P00 bootstrap plan](plan/desktop-audio-recorder
 | Default branch | `main` — stable; initial commit `208539a` |
 | Integration branch | `dev` — created from `main` |
 | Working branch | `initial_dev` — created from `dev` for P00 bootstrap work |
-| CI host | GitHub Actions (workflow file is a P00.6 deliverable) |
+| CI host | GitHub Actions, `.github/workflows/ci.yml`; jobs on `macos-15`, `windows-2025`, `ubuntu-24.04` |
 
 ## Host environment
 
@@ -29,7 +29,8 @@ Observed on 2026-11-13 on the macOS bench.
 | macOS | 27.0.1, arm64 |
 | Xcode / Swift | Xcode 27.2 / Swift 6.4.2 |
 | Rust | rustc 1.100.0, cargo 1.100.0, targets `aarch64-apple-darwin` and `x86_64-apple-darwin` |
-| Tauri CLI | tauri-cli 2.12.4 (cargo) |
+| Tauri CLI | `@tauri-apps/cli` 2.12.4 pinned in `package.json` (a cargo `tauri-cli` 2.12.4 is also installed but not used) |
+| Coverage | `cargo-llvm-cov` 0.9.1; `llvm-tools-preview` installed through `rust-toolchain.toml` |
 | Node / npm | Node 24.21.0 / npm 11.19.0 |
 | ffprobe | 8.1.2 |
 | Windows 11 x64 bench | Not recorded |
@@ -38,7 +39,6 @@ Observed on 2026-11-13 on the macOS bench.
 Environment gaps:
 
 - `~/.cargo/bin` is not on the default shell `PATH`; run `source "$HOME/.cargo/env"` or add it to the shell profile.
-- `llvm-tools-preview` and `cargo-llvm-cov` are not installed; the Rust coverage gate needs both. `doc/environment/setup-environment.sh` now installs them.
 
 ## Open decisions
 
@@ -83,10 +83,22 @@ Resolved by the project owner on 2026-11-13.
 
 ## P00 — Bootstrap
 
-- Status — in progress.
-- Branch and base commit — `initial_dev`, branched from `dev` at the repository-setup commit.
-- Requirements covered — construction plan P00.
-- Changes — Task 1 step 1 (`git init -b main`) and step 2 (`.gitignore`) done in the initial commit.
-- Evidence — `git ls-remote origin main` returns `208539a`.
-- Pending — Task 1 steps 3–7 and Tasks 2–7: toolchain pins, Cargo workspace, Tauri skeleton, quality tooling, coverage gate, CI workflow, packaged window.
-- Next step — Task 1 step 3: write `rust-toolchain.toml`, `.nvmrc`, and `.npmrc`.
+- Status — ready for review.
+- Branch and base commit — `initial_dev`, base `e37ba38` (from `dev`).
+- Requirements covered — construction plan P00; work breakdown P00.1–P00.7.
+- Changes:
+  - Toolchain pins (`rust-toolchain.toml` 1.100.0, `.nvmrc` 24, `.npmrc` exact versions), Cargo workspace with `crates/recorder-core` (no code yet) and `src-tauri`, workspace lints (`unsafe_op_in_unsafe_fn` denied; `unwrap`, `expect`, `panic` rejected by clippy outside tests).
+  - Tauri 2 skeleton without demo code: product `Heed`, identifier `pro.edgarlima.heed`, window 560 × 600, minimum 420 × 480, CSP `default-src 'self'`, capability `core:default` only.
+  - Frontend tooling: strict `tsconfig`, ESLint `strictTypeChecked` with `no-explicit-any` and `no-floating-promises`, Prettier, Vitest with jsdom and V8 coverage; `mountApp` app shell.
+  - `src-tauri/src/lib.rs` exposes `configure`, tested on the Tauri mock runtime; `main.rs` is the window entry point.
+  - Coverage gate `scripts/coverage-gate.mjs` with scopes in `scripts/coverage-scopes.json`; integer rule `covered * 100 > total * 80`.
+  - CI workflow per OS; `.gitattributes` forces LF; Windows test binaries embed the app manifest (`src-tauri/build.rs`).
+- Evidence:
+  - CI run [43498018299](https://github.com/edgarslima/heed/actions/runs/43498018299): success on macOS 15, Windows 2025, Ubuntu 24.04. Gate: frontend lines 6/6 and branches 2/2, rust-tauri lines 3/3, rust-shared and swift-bridge pending.
+  - Local bench: the same command sequence passes; `tauri dev` window "Heed" 560 × 600, clamps to 420 × 480.
+  - Packaged app: [evidence/p00/packaging.md](../evidence/p00/packaging.md).
+- Pending:
+  - **Owner review:** `src-tauri/src/main.rs` is a justified coverage exclusion (window entry point; composition tested through `configure`).
+  - Packaged-window check on Windows and Linux (no benches yet).
+  - Merge `initial_dev` into `dev` after review.
+- Next step — review P00, merge into `dev`, then write the P01 or P03a step plan.
