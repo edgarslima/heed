@@ -41,7 +41,7 @@ Related documents: [Work breakdown](desktop-audio-recorder-work-breakdown.md) ·
 **Interfaces:**
 - Produces: workspace members `src-tauri` and `crates/recorder-core`; `[workspace.lints]` that members inherit with `[lints] workspace = true`.
 
-- [x] **Step 1:** Run `git init -b main` in the repository root. Done in the initial commit `208539a`; remote `origin` is https://github.com/edgarslima/heed. P00 work happens on branch `initial_dev`.
+- [x] **Step 1:** Run `git init -b main` in the repository root. Done in the initial commit `c3d3bef`; remote `origin` is https://github.com/edgarslima/heed. P00 work happens on branch `initial_dev`.
 - [x] **Step 2:** Write `.gitignore` with `target/`, `node_modules/`, `dist/`, `coverage/`, `evidence/**/*.wav`, `.DS_Store`. Done in the initial commit, which also ignores `.env*`, logs, and local assistant settings.
 - [x] **Step 3:** Write `rust-toolchain.toml` with channel `1.100.0`, components `rustfmt`, `clippy`, `llvm-tools-preview`, and targets `aarch64-apple-darwin`, `x86_64-apple-darwin`. Write `.nvmrc` (`24`) and `.npmrc` (`save-exact=true`).
 - [x] **Step 4:** Write the workspace `Cargo.toml`: `resolver = "3"`, members `["crates/recorder-core"]` (Task 2 adds `src-tauri`), `[workspace.package] edition = "2024"`, and lints:

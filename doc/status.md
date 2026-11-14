@@ -15,10 +15,11 @@ P03a is ready for review on `p03a-common-engine`. Next: **P01 · macOS proof** w
 | Item | Value |
 | --- | --- |
 | Remote | `origin` → https://github.com/edgarslima/heed (public) |
-| Default branch | `main` — stable; initial commit `208539a` |
+| Default branch | `main` — stable; initial commit `c3d3bef` |
 | Integration branch | `dev` — created from `main` |
-| Working branches | `initial_dev` — P00 bootstrap (merged into `dev` at `532af1f`); `p03a-common-engine` — P03a |
+| Working branches | `initial_dev` — P00 bootstrap (merged into `dev` at `aa47d72`); `p03a-common-engine` — P03a |
 | CI host | GitHub Actions, `.github/workflows/ci.yml`; jobs on `macos-15`, `windows-2025`, `ubuntu-24.04` |
+| History rewrite | On 2026-11-14 every commit message was rewritten to drop the assistant co-author line (owner request); trees, authors, and dates are unchanged. Commit hashes in this file use the rewritten history; linked CI runs ran on the pre-rewrite commits with identical trees. |
 
 ## Host environment
 
@@ -65,7 +66,7 @@ Resolved by the project owner on 2026-11-13.
 ## Preflight — Repository alignment
 
 - Status — validated.
-- Branch and base commit — `main` at `208539a` (initial commit).
+- Branch and base commit — `main` at `c3d3bef` (initial commit).
 - Requirements covered — construction plan section 0 (repository-alignment preflight).
 - Changes — created `doc/status.md`; added OKF metadata (purpose, audience, status, review date) to every document; fixed the broken build-specification link in the construction plan; removed duplicated gain sentences in architecture section 4; reduced `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, and `.cursor/rules/okf.mdc` to pointers; `CLAUDE.md` imports `AGENTS.md` and the agent directives; extended the setup script with coverage tooling, `ffprobe`, and the keg-only Node `PATH` fix.
 - Evidence — relative-link check over `doc/**/*.md` reports no broken links; `bash -n doc/environment/setup-environment.sh` passes.
@@ -75,7 +76,7 @@ Resolved by the project owner on 2026-11-13.
 ## Planning — Work breakdown
 
 - Status — validated by the owner (decisions recorded above).
-- Branch and base commit — `main` at `208539a` (initial commit).
+- Branch and base commit — `main` at `c3d3bef` (initial commit).
 - Requirements covered — construction plan P00–P11; RF-01 to RF-15 and AC-01 to AC-10 traced in the work breakdown.
 - Changes — added `doc/plan/desktop-audio-recorder-work-breakdown.md` and `doc/plan/desktop-audio-recorder-p00-bootstrap.md`; the construction plan section 3 now points to coding practices section 6 for the gate commands.
 - Evidence — link and metadata checks pass; every RF and AC ID appears in the traceability table.
@@ -85,7 +86,7 @@ Resolved by the project owner on 2026-11-13.
 ## P00 — Bootstrap
 
 - Status — ready for review.
-- Branch and base commit — `initial_dev`, base `e37ba38` (from `dev`).
+- Branch and base commit — `initial_dev`, base `38937ca` (from `dev`).
 - Requirements covered — construction plan P00; work breakdown P00.1–P00.7.
 - Changes:
   - Toolchain pins (`rust-toolchain.toml` 1.100.0, `.nvmrc` 24, `.npmrc` exact versions), Cargo workspace with `crates/recorder-core` (no code yet) and `src-tauri`, workspace lints (`unsafe_op_in_unsafe_fn` denied; `unwrap`, `expect`, `panic` rejected by clippy outside tests).
@@ -95,7 +96,7 @@ Resolved by the project owner on 2026-11-13.
   - Coverage gate `scripts/coverage-gate.mjs` with scopes in `scripts/coverage-scopes.json`; integer rule `covered * 100 > total * 80`. It also validates the scope schema, requires literal paths and reasons for justified exclusions, prints every exclusion with its measured counts, fails on coverage pragmas in production sources, and fails a pending scope whose report already measures code.
   - CI workflow per OS; `.gitattributes` forces LF; Windows test binaries embed the app manifest (`src-tauri/build.rs`).
 - Evidence:
-  - CI run [43501415439](https://github.com/edgarslima/heed/actions/runs/43501415439) on `1d3cba8`: success on macOS 15, Windows 2025, Ubuntu 24.04. Gate: frontend lines 6/6 and branches 2/2, rust-tauri lines 9/9 (`main.rs` excluded with 0/6 shown), rust-shared and swift-bridge pending. Gate tests: 21; total frontend and script tests: 24.
+  - CI run [43501415439](https://github.com/edgarslima/heed/actions/runs/43501415439) on `f8225c5`: success on macOS 15, Windows 2025, Ubuntu 24.04. Gate: frontend lines 6/6 and branches 2/2, rust-tauri lines 9/9 (`main.rs` excluded with 0/6 shown), rust-shared and swift-bridge pending. Gate tests: 21; total frontend and script tests: 24.
   - Local bench: the same command sequence passes; `tauri dev` window "Heed" 560 × 600, clamps to 420 × 480.
   - Packaged app: [evidence/p00/packaging.md](../evidence/p00/packaging.md).
 - Pending:
@@ -115,14 +116,14 @@ Resolved by the project owner on 2026-11-13.
 ## P03a — Common engine
 
 - Status — ready for review.
-- Branch and base commit — `p03a-common-engine`, base `532af1f` (`dev`).
+- Branch and base commit — `p03a-common-engine`, base `aa47d72` (`dev`).
 - Requirements covered — work breakdown P03.1–P03.4; architecture section 2 (capture contract, queue) and section 4 (conversion, metering); RF-06 and AC-06 groundwork.
 - Changes:
   - `recorder-core`: audio formats, block header and flags, capture events and errors, the `CaptureSource` trait, an allocation-free `rtrb` block queue, PCM conversion to finite `f32`, 100 ms metering with a latest-value snapshot slot, and a deterministic synthetic source with scripted events and clock drift.
   - Coverage gate: `declarativeFiles` for files llvm-cov omits (module declarations, a trait without bodies), each with a reason and a check that they stay unmeasured; `rust-shared` scope active.
   - Architecture section 2 records the implemented contract.
 - Evidence:
-  - CI run [43508152103](https://github.com/edgarslima/heed/actions/runs/43508152103) on `0c249e6` (after the review fixes): success on macOS 15, Windows 2025, Ubuntu 24.04; gate `rust-shared` lines 447/456.
+  - CI run [43508152103](https://github.com/edgarslima/heed/actions/runs/43508152103) on `3d084fc` (after the review fixes): success on macOS 15, Windows 2025, Ubuntu 24.04; gate `rust-shared` lines 447/456.
   - 61 Rust tests and 28 frontend and script tests pass locally. The allocation test reports 0 allocations over 20,000 queue operations; a mutation check (an injected allocation) made it fail with 20,000.
 - Deviations from the P03a plan:
   - Integration test files allow `clippy::panic`, `unwrap_used`, and `expect_used` with a stated reason; clippy's test exemptions do not cover helpers in `tests/`.

@@ -4,7 +4,7 @@
 
 | Field                                               | Value                                                                             |
 | --------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Commit                                              | `a8614f7` (branch `initial_dev`)                                                  |
+| Commit                                              | `0ab8510` (branch `initial_dev`)                                                  |
 | Host                                                | macOS 27.0.1, arm64 (MacBook Pro bench)                                           |
 | Toolchain                                           | rustc 1.100.0, tauri-cli 2.12.4 (npm), Node 24.21.0                               |
 | Command                                             | `npm run tauri build -- --bundles app`                                            |
