@@ -81,6 +81,16 @@ Accepted on 2026-11-13 from the [P03a common engine plan](../plan/desktop-audio-
 3. Use the device callback for PCM. Respect the negotiated buffer layout, convert host time to a common monotonic reference, and validate sample-time availability. The callback uses borrowed data only during the call, without transferring buffer ownership. Serialize the lifetime to release the context after confirming that callbacks have stopped. Tear down IOProc, aggregate, and tap in reverse creation order.
 4. Configure `NSAudioCaptureUsageDescription`, `NSMicrophoneUsageDescription`, and the required audio input entitlement for Hardened Runtime when required. Trigger permissions after explicit user action. Package with Developer ID and notarization. [Apple — Core Audio taps](https://developer.apple.com/documentation/coreaudio/capturing-system-audio-with-core-audio-taps) · [Apple — AUHAL](https://developer.apple.com/library/archive/technotes/tn2091/_index.html) · [Apple — entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.device.audio-input) · [Apple — notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
 
+**Implemented bridge contract (P01.2).** Recorded on 2026-11-14 from the [P01 macOS proof plan](../plan/desktop-audio-recorder-p01-macos-proof.md). The header `native/macos/include/recorder-bridge.h` is the contract.
+
+| Element | Implementation |
+| --- | --- |
+| Lifecycle | `recorder_create` → `recorder_prepare(handle, RECORDER_SOURCE_MICROPHONE, &format)` → `recorder_start(handle, callback, context)` → `recorder_stop` (idempotent; returns after stop, uninitialize, and dispose, so no callback runs afterwards) → `recorder_destroy` (stops first). One control thread per handle. |
+| Format | `recorder_format`: device sample rate (integral, 8–384 kHz), 1–8 channels, `RECORDER_SAMPLE_F32` packed interleaved, and `max_block_frames` from `kAudioUnitProperty_MaximumFramesPerSlice` (at most 16,384). The bridge does not resample. |
+| Block | `recorder_block`: borrowed `samples` valid only during the callback, `frame_count`, `host_time_ns` (mach host time in nanoseconds), `sample_time`, and flags for host time valid, sample time valid, and discontinuity (an earlier render was oversized or failed). |
+| Errors | `RECORDER_INVALID_ARGUMENT`, `RECORDER_SOURCE_UNAVAILABLE` (no default device or unsupported format), `RECORDER_INVALID_STATE`, `RECORDER_PERMISSION_DENIED` (access not granted), and `RECORDER_NATIVE_ERROR` with the `OSStatus` from `recorder_last_os_status`. |
+| Access | `recorder_microphone_access(request, &access)` reports the TCC status and, when asked, requests access and waits for the answer. |
+
 ### Linux · PipeWire
 
 1. Use `pipewire-rs` and `libpipewire` in the user session. Observe the registry and resolve the input or sink monitor target. Define the `stream.capture.sink` for output monitors. Application capture uses identifiable streams and respects WirePlumber policy.

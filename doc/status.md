@@ -8,7 +8,7 @@ Each entry follows the checkpoint template in section 4 of the construction plan
 
 ## Next task
 
-P03a is ready for review on `p03a-common-engine`. P01.1 bridge work is in progress in the same working tree; its capture adapters are not implemented. P01 hardware tests need the owner present; P03b (timeline and resampling) depends on P01.
+P03a, P01.1, and P01.2 are ready for review on `p03a-common-engine`. Next: P01.3 (global system tap and aggregate device) with the owner present to confirm playback stays audible; P01.4 then combines microphone and system capture. P03b (timeline and resampling) depends on P01.
 
 ## Repository
 
@@ -139,10 +139,29 @@ Resolved by the project owner on 2026-11-13.
 
 ## P01.1 — macOS bridge skeleton
 
-- Status — ready for review on `p03a-common-engine`, based on `35dacba`; not merged.
+- Status — ready for review on `p03a-common-engine` at `5f3a08b`; not merged.
 - Requirements covered — P01.1 and architecture section 3 macOS C ABI groundwork. No capture or device discovery is implemented.
 - Changes — added a Swift bridge, opaque C handle, explicit result codes, Cargo compilation on macOS, Rust ABI smoke test, Swift XCTest target, and a P01 plan. The coverage gate reads `xccov` reports and requires the Swift scope on macOS; CI has a macOS XCTest and report step. Discovery and preparation return source unavailable, and start returns invalid state. Review on 2026-11-14: the Swift package now declares macOS 14.2 like `project.yml` and `build.rs`; `.gitignore` and `.prettierignore` skip `native/macos/.build/` (Swift package output that broke `npm run lint`) and `.xcresult` bundles.
 - Evidence — macOS arm64 with Xcode 27.2: Swift package XCTest passed 2 tests; Xcode XCTest passed 2 tests outside the sandbox, and `xccov` reports 27/27 production lines. The full local gate (`npm run build`, `cargo fmt --all -- --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json`, `npm run lint`, `npm run typecheck`, `npm run test:coverage`, and `npm run coverage:gate`) passed: Swift 27/27, shared Rust 447/456, Tauri 9/9, frontend 6/6 lines and 2/2 branches; 62 Rust tests passed. After adding a platform-skip regression, lint, coverage tests (32 frontend/script tests), and the coverage gate passed again. A C11 header syntax check passed. Re-run on 2026-11-14 after the review fixes, with `swift test` output present: the same sequence plus `xcodebuild … test` and `xccov` passed — Swift 27/27, shared Rust 447/456, Tauri 9/9, frontend 6/6 lines and 2/2 branches, 32 frontend and script tests.
-- Pending — review the ABI and P03a; run CI on all three operating systems before merge. The macOS proof, 60-second recordings, playback, permissions, and native cleanup tests have not started. The current ABI is a skeleton and will need source, callback, and format contracts as capture is implemented.
-- Next step — review P03a and the bridge, run CI, then implement P01.2 with the owner present for the microphone permission and hardware recording.
+- CI — run [43619725671](https://github.com/edgarslima/heed/actions/runs/43619725671) on `5f3a08b`: success on macOS 15, Windows 2025, Ubuntu 24.04. macOS gate: Swift 27/27, shared Rust 447/456, Tauri 9/9, frontend 6/6 and 2/2; Windows and Ubuntu skip the Swift scope as not applicable.
+- Pending — review and merge with P03a.
+- Next step — P01.2.
 
+## P01.2 — Microphone capture
+
+- Status — ready for review on `p03a-common-engine` at `d1ef9de`; not merged.
+- Requirements covered — work breakdown P01.2; architecture section 3 macOS items 1–3 for the microphone (AUHAL, device callback, host time, reverse-order teardown).
+- Changes:
+  - C ABI: `recorder_microphone_access`, `recorder_prepare(handle, source_kind, format)`, `recorder_start(handle, callback, context)`, `recorder_last_os_status`, the `recorder_format` and `recorder_block` structs with static size checks, block flags, and the codes `RECORDER_PERMISSION_DENIED` and `RECORDER_NATIVE_ERROR`. `recorder_list` counts the default input device; `recorder_destroy` stops a running handle.
+  - Swift: `MicrophoneCapture` opens the default input through AUHAL with packed interleaved `Float32` at the device rate, preallocates the render buffer, marks the next block discontinuous after an oversized or failed render, and tears down with stop, uninitialize, and dispose before `stop` returns. Prepare requires granted access because macOS records silence without it. Core Audio calls go through the `CoreAudioCalls` seam; XCTest drives a fake for lifecycle, errors, and teardown.
+  - Rust: `build.rs` compiles every Swift source; the ABI test checks the struct layouts and argument validation; `examples/macos-microphone-probe.rs` pushes callback blocks into the P03a queue and writes an IEEE-float WAV from a writer thread.
+- Evidence:
+  - [evidence/p01/microphone.md](../evidence/p01/microphone.md): a 60.000 s WAV, `pcm_f32le`, 48 kHz mono, 2,880,000 frames, 512-frame blocks, no drops or sample-time gaps, host clock 47,999.988 Hz; `ffprobe` JSON and SHA-256 recorded.
+  - The opt-in hardware XCTest (`HEED_HARDWARE_TESTS=1 swift test --filter CoreAudioLiveTests`) passed three 1-second capture cycles, and no callback ran after `stop` returned.
+  - Full local gate on macOS arm64 (the P01.1 sequence plus `xcodebuild … test` and `xccov`): Swift 313/321, shared Rust 447/456, Tauri 9/9, frontend 6/6 lines and 2/2 branches; 63 Rust tests and 32 frontend and script tests passed. The Swift package ran 19 tests; the hardware test is skipped unless enabled.
+- Deviations from the P01.2 step plan:
+  - Microphone access was already granted to the terminal, so no prompt fired. Grant, denial, and revocation stay in P01.6.
+  - The recording shows room sound (peak -25.31 dBFS), not clear speech; the acceptance check compared it with a room check at peak -28.27 dBFS.
+- Skipped scenarios — the hardware XCTest is skipped on CI because runners have no granted microphone; the default run never starts input, so it cannot raise a prompt.
+- Pending — review; CI on the three operating systems for `d1ef9de`.
+- Next step — P01.3 with the owner present.

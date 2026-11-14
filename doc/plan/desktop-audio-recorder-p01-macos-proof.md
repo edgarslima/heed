@@ -14,3 +14,25 @@ Related documents: [Construction plan](desktop-audio-recorder-construction-plan.
 6. **P01.6 — Permissions.** Test grant, denial, and revocation in a signed development build. Record usage descriptions, entitlements, and observed behavior.
 
 The owner attends permission and playback checks. Record commands, environment, results, and evidence paths in `doc/status.md`; do not claim native capture from synthetic tests. Review P03a and integrate the relevant branch before considering the combined work ready for merge. Before adding Rust platform-only adapter files, extend the coverage inventory to group those files by OS as noted in the P03a checkpoint.
+
+## P01.2 step plan — Microphone
+
+Executed on 2026-11-14; results and deviations are in the P01.2 entry of `doc/status.md`.
+
+**Goal:** Capture the default input device through AUHAL in the Swift bridge, deliver borrowed `f32` blocks across the C ABI into the P03a block queue, and write a 60-second WAV from a probe on the Mac.
+
+**Decisions:**
+
+- **ABI.** `recorder_prepare(handle, source_kind, format_out)` opens the source and reports the negotiated format; `recorder_start(handle, callback, context)` registers a C callback that receives a `recorder_block` (borrowed interleaved `f32` samples, frame count, host time in nanoseconds, sample time, validity flags) on the audio thread. The pointer is valid only during the call. `recorder_stop` returns only after the device stopped calling back, so the context can be freed afterwards. `recorder_last_os_status` exposes the last Core Audio `OSStatus` for diagnostics. New codes: `RECORDER_PERMISSION_DENIED` and `RECORDER_NATIVE_ERROR`. `recorder_microphone_access` reports or requests TCC access from a control thread.
+- **Format.** The client format keeps the device's sample rate and channel count and asks AUHAL for packed interleaved `Float32`. AUHAL does not resample; P03b owns rate changes.
+- **Seam.** `MicrophoneCapture` owns state, buffers, and callback forwarding and calls Core Audio only through the `InputUnitDriver` protocol. XCTest drives it with a fake driver for lifecycle, invalid states, render errors, and teardown. The real `AUHALDriver` is a thin pass-through tested on the Mac: opening the default device needs no TCC grant; capture tests that start the device run only when `HEED_HARDWARE_TESTS=1`.
+- **Probe.** `crates/recorder-core/examples/macos-microphone-probe.rs` is a validation tool, not shipped code, so it sits outside the `crates/**/src/**` coverage scope. Its callback pushes into `BlockProducer`; a consumer thread writes an IEEE-float WAV and the probe prints a JSON summary (format, frames, blocks, drops, first host time, sample-time gaps, peak dBFS). No production Rust file is added, so the per-OS Rust inventory stays a prerequisite of the first Rust adapter file.
+- **Build.** `build.rs` compiles every Swift file under `Sources/RecorderBridge` and reruns when any of them or the header changes.
+
+**Tasks:**
+
+1. Extend the header and the Swift entry points with failing XCTest cases for the new arguments, states, and codes; then implement `MicrophoneCapture` against a fake driver.
+2. Implement `AUHALDriver`, with a Mac test that opens and closes the default input device and an opt-in hardware test that captures one second.
+3. Update `build.rs` and the Rust ABI smoke test; add the probe example.
+4. With the owner present: grant microphone access, record 60 seconds of speech, and run `ffprobe -v error -print_format json -show_format -show_streams`. Accept when the duration is 60 s ± one block, the format matches the reported one, there are no drops, and the peak is well above silence. Store the probe summary, `ffprobe` JSON, host, permission state, and the WAV SHA-256 in `evidence/p01/microphone.md`; the WAV stays git-ignored.
+5. Run the full local gate and CI; record the results in `doc/status.md`.

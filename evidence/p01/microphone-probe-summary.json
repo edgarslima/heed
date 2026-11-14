@@ -1,0 +1,30 @@
+{
+  "probe": "macos-microphone",
+  "output": "evidence/p01/microphone-60s.wav",
+  "requestedSeconds": 60,
+  "elapsedSeconds": 60.066,
+  "format": {
+    "sampleRateHz": 48000,
+    "channelCount": 1,
+    "sampleFormat": "f32",
+    "maxBlockFrames": 512
+  },
+  "callbacks": 5625,
+  "blockFrames": { "min": 512, "max": 512 },
+  "blocksWritten": 5625,
+  "framesWritten": 2880000,
+  "writtenSeconds": 60.0,
+  "queueDrops": { "blocks": 0, "frames": 0 },
+  "discontinuityBlocks": 0,
+  "bridgeDiscontinuities": 0,
+  "sampleTimeGaps": 0,
+  "maxSampleTimeGapFrames": 0.0,
+  "invalidHostTimes": 0,
+  "invalidSampleTimes": 0,
+  "firstHostTimeNs": 174168285198250,
+  "hostSpanNs": 59989348000,
+  "hostMeasuredRateHz": 47999.988,
+  "peakDbfs": -25.31,
+  "rmsDbfs": -40.89,
+  "nonFiniteSamples": 0
+}
