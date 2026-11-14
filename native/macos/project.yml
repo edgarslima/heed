@@ -1,0 +1,37 @@
+name: RecorderBridge
+options:
+  deploymentTarget:
+    macOS: "14.2"
+targets:
+  RecorderBridge:
+    type: framework
+    platform: macOS
+    sources:
+      - Sources/RecorderBridge
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: pro.edgarlima.heed.recorder-bridge
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+  RecorderBridgeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/RecorderBridgeTests
+    dependencies:
+      - target: RecorderBridge
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: pro.edgarlima.heed.recorder-bridge-tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+schemes:
+  RecorderBridge:
+    build:
+      targets:
+        RecorderBridge: all
+        RecorderBridgeTests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - RecorderBridgeTests

@@ -8,7 +8,7 @@ Each entry follows the checkpoint template in section 4 of the construction plan
 
 ## Next task
 
-P03a is ready for review on `p03a-common-engine`. Next: **P01 · macOS proof** when the owner can attend the capture tests; P03b (timeline and resampling) depends on P01.
+P03a is ready for review on `p03a-common-engine`. P01.1 bridge work is in progress in the same working tree; its capture adapters are not implemented. P01 hardware tests need the owner present; P03b (timeline and resampling) depends on P01.
 
 ## Repository
 
@@ -136,4 +136,13 @@ Resolved by the project owner on 2026-11-13.
   - Before P01 adapters: the coverage gate needs a per-OS scope or inventory, because platform-only adapter files are absent from other OSes' reports.
   - P03b needs P01 observations; P03.7 needs the Windows bench.
 - Next step — review P03a and choose how to integrate it into `dev`; then P01 with the owner present.
+
+## P01.1 — macOS bridge skeleton
+
+- Status — ready for review on `p03a-common-engine`, based on `35dacba`; not merged.
+- Requirements covered — P01.1 and architecture section 3 macOS C ABI groundwork. No capture or device discovery is implemented.
+- Changes — added a Swift bridge, opaque C handle, explicit result codes, Cargo compilation on macOS, Rust ABI smoke test, Swift XCTest target, and a P01 plan. The coverage gate reads `xccov` reports and requires the Swift scope on macOS; CI has a macOS XCTest and report step. Discovery and preparation return source unavailable, and start returns invalid state. Review on 2026-11-14: the Swift package now declares macOS 14.2 like `project.yml` and `build.rs`; `.gitignore` and `.prettierignore` skip `native/macos/.build/` (Swift package output that broke `npm run lint`) and `.xcresult` bundles.
+- Evidence — macOS arm64 with Xcode 27.2: Swift package XCTest passed 2 tests; Xcode XCTest passed 2 tests outside the sandbox, and `xccov` reports 27/27 production lines. The full local gate (`npm run build`, `cargo fmt --all -- --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json`, `npm run lint`, `npm run typecheck`, `npm run test:coverage`, and `npm run coverage:gate`) passed: Swift 27/27, shared Rust 447/456, Tauri 9/9, frontend 6/6 lines and 2/2 branches; 62 Rust tests passed. After adding a platform-skip regression, lint, coverage tests (32 frontend/script tests), and the coverage gate passed again. A C11 header syntax check passed. Re-run on 2026-11-14 after the review fixes, with `swift test` output present: the same sequence plus `xcodebuild … test` and `xccov` passed — Swift 27/27, shared Rust 447/456, Tauri 9/9, frontend 6/6 lines and 2/2 branches, 32 frontend and script tests.
+- Pending — review the ABI and P03a; run CI on all three operating systems before merge. The macOS proof, 60-second recordings, playback, permissions, and native cleanup tests have not started. The current ABI is a skeleton and will need source, callback, and format contracts as capture is implemented.
+- Next step — review P03a and the bridge, run CI, then implement P01.2 with the owner present for the microphone permission and hardware recording.
 

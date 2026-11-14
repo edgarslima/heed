@@ -61,6 +61,11 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:coverage
+      - name: Test the macOS bridge and collect coverage
+        if: runner.os == 'macOS'
+        run: |
+          xcodebuild -quiet -project native/macos/RecorderBridge.xcodeproj -scheme RecorderBridge -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/heed-xcode" -resultBundlePath "$RUNNER_TEMP/heed-swift.xcresult" CODE_SIGNING_ALLOWED=NO test
+          xcrun xccov view --report --json "$RUNNER_TEMP/heed-swift.xcresult" > coverage/swift.json
       - run: npm run coverage:gate
 
       - uses: actions/upload-artifact@v4

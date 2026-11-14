@@ -1,0 +1,428 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		8C2496FC32255BD21F16FB9D /* RecorderBridge.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A2D14675BBDA9F30D55D2137 /* RecorderBridge.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A5F59F6684002BEC1AC7AEAC /* recorder-bridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41ED46B404B4D6A5F328233A /* recorder-bridge.swift */; };
+		C5F182CE3854880604A142F9 /* recorder-bridge-tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCC2EAA3FADB1C34B7512C2 /* recorder-bridge-tests.swift */; };
+		D69CC648427F7320D9F343D8 /* RecorderBridge.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2D14675BBDA9F30D55D2137 /* RecorderBridge.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		31D065FC959C2E82912474C5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C26C4CBCC7E92F236483B94F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E9F662C394915D67FCF2649B;
+			remoteInfo = RecorderBridge;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1ACD8C96A4C5A01F9E3C3D72 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				8C2496FC32255BD21F16FB9D /* RecorderBridge.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1F221D9AA063173AEA4BFD1A /* RecorderBridgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RecorderBridgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		41ED46B404B4D6A5F328233A /* recorder-bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "recorder-bridge.swift"; sourceTree = "<group>"; };
+		9CCC2EAA3FADB1C34B7512C2 /* recorder-bridge-tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "recorder-bridge-tests.swift"; sourceTree = "<group>"; };
+		A2D14675BBDA9F30D55D2137 /* RecorderBridge.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RecorderBridge.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		8F32A638F49A2327089AFCEA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D69CC648427F7320D9F343D8 /* RecorderBridge.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0E8C8D0A9BA978FE4756CDD2 /* RecorderBridgeTests */ = {
+			isa = PBXGroup;
+			children = (
+				9CCC2EAA3FADB1C34B7512C2 /* recorder-bridge-tests.swift */,
+			);
+			name = RecorderBridgeTests;
+			path = Tests/RecorderBridgeTests;
+			sourceTree = "<group>";
+		};
+		4A30765FDE7CF3694D21E9A2 /* RecorderBridge */ = {
+			isa = PBXGroup;
+			children = (
+				41ED46B404B4D6A5F328233A /* recorder-bridge.swift */,
+			);
+			name = RecorderBridge;
+			path = Sources/RecorderBridge;
+			sourceTree = "<group>";
+		};
+		753C610E52C080B8AE2E807B = {
+			isa = PBXGroup;
+			children = (
+				4A30765FDE7CF3694D21E9A2 /* RecorderBridge */,
+				0E8C8D0A9BA978FE4756CDD2 /* RecorderBridgeTests */,
+				A3C2108212BC97F3048F3CC0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A3C2108212BC97F3048F3CC0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A2D14675BBDA9F30D55D2137 /* RecorderBridge.framework */,
+				1F221D9AA063173AEA4BFD1A /* RecorderBridgeTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		944117B7BC63C7B4EC402968 /* RecorderBridgeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8277FFE1C6380FC641D1CBFB /* Build configuration list for PBXNativeTarget "RecorderBridgeTests" */;
+			buildPhases = (
+				FA583E36BDD5D9BDB4E6240B /* Sources */,
+				8F32A638F49A2327089AFCEA /* Frameworks */,
+				1ACD8C96A4C5A01F9E3C3D72 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0218F147CF895DB0555C6F65 /* PBXTargetDependency */,
+			);
+			name = RecorderBridgeTests;
+			packageProductDependencies = (
+			);
+			productName = RecorderBridgeTests;
+			productReference = 1F221D9AA063173AEA4BFD1A /* RecorderBridgeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E9F662C394915D67FCF2649B /* RecorderBridge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9BFB6D6FAF6F898198F65F63 /* Build configuration list for PBXNativeTarget "RecorderBridge" */;
+			buildPhases = (
+				ADC90FB7AE68AF02779C8B61 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RecorderBridge;
+			packageProductDependencies = (
+			);
+			productName = RecorderBridge;
+			productReference = A2D14675BBDA9F30D55D2137 /* RecorderBridge.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C26C4CBCC7E92F236483B94F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 5B43483A183E692CD676B3D9 /* Build configuration list for PBXProject "RecorderBridge" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 753C610E52C080B8AE2E807B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A3C2108212BC97F3048F3CC0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E9F662C394915D67FCF2649B /* RecorderBridge */,
+				944117B7BC63C7B4EC402968 /* RecorderBridgeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		ADC90FB7AE68AF02779C8B61 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A5F59F6684002BEC1AC7AEAC /* recorder-bridge.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FA583E36BDD5D9BDB4E6240B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C5F182CE3854880604A142F9 /* recorder-bridge-tests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0218F147CF895DB0555C6F65 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E9F662C394915D67FCF2649B /* RecorderBridge */;
+			targetProxy = 31D065FC959C2E82912474C5 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		32B66B4E46F3D820C275A2ED /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		827F9084EE3B674098C9D612 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "pro.edgarlima.heed.recorder-bridge";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		9042CCFEE4AC5FF535DE5299 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "pro.edgarlima.heed.recorder-bridge-tests";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A1675F81467922336A8B0C25 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "pro.edgarlima.heed.recorder-bridge-tests";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BFC640752E565774CAD2DE12 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "pro.edgarlima.heed.recorder-bridge";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		ECE2685DB0D5742598996CFE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5B43483A183E692CD676B3D9 /* Build configuration list for PBXProject "RecorderBridge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ECE2685DB0D5742598996CFE /* Debug */,
+				32B66B4E46F3D820C275A2ED /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8277FFE1C6380FC641D1CBFB /* Build configuration list for PBXNativeTarget "RecorderBridgeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9042CCFEE4AC5FF535DE5299 /* Debug */,
+				A1675F81467922336A8B0C25 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9BFB6D6FAF6F898198F65F63 /* Build configuration list for PBXNativeTarget "RecorderBridge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BFC640752E565774CAD2DE12 /* Debug */,
+				827F9084EE3B674098C9D612 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C26C4CBCC7E92F236483B94F /* Project object */;
+}

@@ -27,6 +27,7 @@ The documentation architecture is intended to:
 - `doc/plan/desktop-audio-recorder-construction-plan.md` — delivery plan for the desktop recorder project
 - `doc/plan/desktop-audio-recorder-work-breakdown.md` — work packages, traceability, hosts, critical path, and pre-construction decisions
 - `doc/plan/desktop-audio-recorder-p00-bootstrap.md` — step-level plan for task P00
+- `doc/plan/desktop-audio-recorder-p01-macos-proof.md` — sequence and evidence gates for the macOS capture proof
 - `doc/plan/desktop-audio-recorder-p03a-common-engine.md` — step-level plan for P03a (capture contract, queue, conversion, metering)
 - `doc/specs/software-architecture-desktop-audio-recorder.md` — software architecture specification
 - `doc/specs/design-system-desktop-audio-recorder.md` — design system specification

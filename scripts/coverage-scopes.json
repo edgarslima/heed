@@ -55,10 +55,11 @@
       "name": "swift-bridge",
       "kind": "xccov",
       "report": "coverage/swift.json",
-      "include": ["native/macos/**/*.swift"],
+      "include": ["native/macos/Sources/**/*.swift"],
       "exclude": [],
       "metrics": ["lines"],
-      "status": "pending"
+      "platforms": ["darwin"],
+      "status": "active"
     }
   ]
 }

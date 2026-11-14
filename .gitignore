@@ -2,6 +2,10 @@
 target/
 dist/
 node_modules/
+# Swift Package Manager and Xcode build output
+native/macos/.build/
+*.xcresult
+xcuserdata/
 
 # Coverage and test reports
 coverage/

@@ -1,6 +1,7 @@
 dist/
 coverage/
 target/
+native/macos/.build/
 src-tauri/gen/
 src-tauri/icons/
 package-lock.json

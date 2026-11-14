@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { execPath } from "node:process";
+import { execPath, platform } from "node:process";
 import { describe, expect, it } from "vitest";
 import {
   evaluateScope,
@@ -364,6 +364,70 @@ describe("scope validation", () => {
   });
 });
 
+describe("macOS coverage", () => {
+  const scope = {
+    name: "swift-bridge",
+    kind: "xccov",
+    report: "swift.json",
+    include: ["native/macos/Sources/**/*.swift"],
+    metrics: ["lines"],
+    status: "active",
+    platforms: ["darwin"],
+  };
+  const path = "native/macos/Sources/bridge.swift";
+
+  it("checks xccov source counts against the strict threshold", () => {
+    for (const [coveredLines, expected] of [
+      [81, "pass"],
+      [80, "fail"],
+    ]) {
+      const { dir } = writeTemp(
+        "swift.json",
+        JSON.stringify({
+          targets: [
+            {
+              files: [
+                { path: `/repo/${path}`, executableLines: 100, coveredLines },
+              ],
+            },
+          ],
+        }),
+      );
+      expect(
+        evaluateScope(scope, loadReport(scope, dir, "/repo"), [path]).status,
+      ).toBe(expected);
+    }
+  });
+
+  it("rejects malformed and duplicate xccov files", () => {
+    for (const files of [
+      [{ path, executableLines: 1, coveredLines: 2 }],
+      [
+        { path, executableLines: 1, coveredLines: 1 },
+        { path, executableLines: 1, coveredLines: 1 },
+      ],
+    ]) {
+      const { dir } = writeTemp(
+        "swift.json",
+        JSON.stringify({ targets: [{ files }] }),
+      );
+      expect(evaluateScope(scope, loadReport(scope, dir), [path]).status).toBe(
+        "fail",
+      );
+    }
+  });
+
+  it("rejects an invalid platform list", () => {
+    const result = evaluateScope(
+      { ...scope, platforms: ["mac"] },
+      { files: {} },
+      [path],
+    );
+    expect(result.status).toBe("fail");
+    expect(result.reasons).toContain("platforms must list known platforms");
+  });
+});
+
 describe("declarative files", () => {
   const sharedScope = {
     ...rustScope,
@@ -445,6 +509,25 @@ describe("declarative files", () => {
 });
 
 describe("command line", () => {
+  it("skips an active scope on a different platform", () => {
+    const repo = mkdtempSync(join(tmpdir(), "coverage-gate-repo-"));
+    spawnSync("git", ["init", "-q"], { cwd: repo });
+    mkdirSync(join(repo, "scripts"));
+    const otherPlatform = platform === "darwin" ? "linux" : "darwin";
+    writeFileSync(
+      join(repo, "scripts", "coverage-scopes.json"),
+      JSON.stringify({
+        scopes: [{ ...frontendScope, platforms: [otherPlatform] }],
+      }),
+    );
+    const run = spawnSync(execPath, [resolve("scripts/coverage-gate.mjs")], {
+      cwd: repo,
+      encoding: "utf8",
+    });
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("SKIP frontend");
+  });
+
   it("exits 1 with a missing report when run through a symlinked path", () => {
     const repo = mkdtempSync(join(tmpdir(), "coverage-gate-repo-"));
     spawnSync("git", ["init", "-q"], { cwd: repo });

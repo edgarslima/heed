@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { isAbsolute, join, matchesGlob, relative, sep } from "node:path";
-import { cwd, exit } from "node:process";
+import { cwd, exit, platform } from "node:process";
 
 const THRESHOLD_PERCENT = 80;
 const KINDS = ["llvm-cov", "vitest", "xccov"];
@@ -68,6 +68,33 @@ function parseVitest(data, sourceRoot) {
   return { files: result };
 }
 
+function parseXccov(data, sourceRoot) {
+  if (!Array.isArray(data?.targets))
+    return { error: "report has no targets array" };
+  const result = {};
+  for (const target of data.targets) {
+    if (!Array.isArray(target.files))
+      return { error: "target has no files array" };
+    for (const file of target.files) {
+      const { path, coveredLines, executableLines } = file;
+      if (
+        typeof path !== "string" ||
+        !Number.isSafeInteger(coveredLines) ||
+        !Number.isSafeInteger(executableLines) ||
+        coveredLines < 0 ||
+        coveredLines > executableLines
+      )
+        return { error: "invalid xccov file counts" };
+      const name = toRepoPath(path, sourceRoot);
+      if (name in result) return { error: `duplicate xccov file: ${name}` };
+      result[name] = {
+        lines: { covered: coveredLines, total: executableLines },
+      };
+    }
+  }
+  return { files: result };
+}
+
 /**
  * Reads a scope's report from reportRoot. File names are made relative to sourceRoot.
  * Returns { files } on success or { error } when the report is missing or unusable.
@@ -91,6 +118,7 @@ export function loadReport(scope, reportRoot, sourceRoot = reportRoot) {
   }
   if (scope.kind === "llvm-cov") return parseLlvmCov(data, sourceRoot);
   if (scope.kind === "vitest") return parseVitest(data, sourceRoot);
+  if (scope.kind === "xccov") return parseXccov(data, sourceRoot);
   return { error: `unsupported report kind: ${scope.kind}` };
 }
 
@@ -126,6 +154,14 @@ function validateScope(scope, sourceFiles) {
   if (!KINDS.includes(scope.kind)) reasons.push(`unknown kind: ${scope.kind}`);
   if (!STATUSES.includes(scope.status)) {
     reasons.push(`unknown status: ${scope.status}`);
+  }
+  if (
+    scope.platforms !== undefined &&
+    (!Array.isArray(scope.platforms) ||
+      scope.platforms.length === 0 ||
+      scope.platforms.some((p) => !["darwin", "win32", "linux"].includes(p)))
+  ) {
+    reasons.push("platforms must list known platforms");
   }
   if (!Array.isArray(scope.include) || scope.include.length === 0) {
     reasons.push("include must list at least one glob");
@@ -302,6 +338,15 @@ function main() {
 
   let failed = false;
   for (const scope of scopes) {
+    if (
+      Array.isArray(scope.platforms) &&
+      scope.platforms.length > 0 &&
+      scope.platforms.every((p) => ["darwin", "win32", "linux"].includes(p)) &&
+      !scope.platforms.includes(platform)
+    ) {
+      console.log(`SKIP ${scope.name} — not applicable on ${platform}`);
+      continue;
+    }
     const report = loadReport(scope, root);
     const result = evaluateScope(scope, report, sourceFiles);
     const counts = result.metrics
