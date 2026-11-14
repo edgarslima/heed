@@ -5,8 +5,10 @@ import XCTest
 @testable import RecorderBridge
 
 /// Exercises the real Core Audio calls. The default run never starts input, so it cannot
-/// trigger a microphone prompt. Set `HEED_HARDWARE_TESTS=1` (with `xcodebuild`, pass
-/// `TEST_RUNNER_HEED_HARDWARE_TESTS=1`) on a Mac with granted microphone access to capture.
+/// trigger a microphone prompt. To capture, run `HEED_HARDWARE_TESTS=1 swift test --filter
+/// CoreAudioLiveTests` from a terminal that has microphone access: `swift test` inherits the
+/// terminal's TCC grant, while the runner that `xcodebuild` launches has its own identity and
+/// skips the capture test unless that runner was granted access too.
 final class CoreAudioLiveTests: XCTestCase {
     func testLiveCallsOpenAndReleaseAnInputUnitWithoutStartingIt() throws {
         let calls = CoreAudioCalls.live

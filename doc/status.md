@@ -162,6 +162,7 @@ Resolved by the project owner on 2026-11-13.
 - Deviations from the P01.2 step plan:
   - Microphone access was already granted to the terminal, so no prompt fired. Grant, denial, and revocation stay in P01.6.
   - The recording shows room sound (peak -25.31 dBFS), not clear speech; the acceptance check compared it with a room check at peak -28.27 dBFS.
-- Skipped scenarios — the hardware XCTest is skipped on CI because runners have no granted microphone; the default run never starts input, so it cannot raise a prompt.
-- Pending — review; CI on the three operating systems for `d1ef9de`.
+- Skipped scenarios — the hardware XCTest is skipped on CI because runners have no granted microphone; the default run never starts input, so it cannot raise a prompt. Run the hardware test with `swift test`, which inherits the terminal's microphone grant: with `TEST_RUNNER_HEED_HARDWARE_TESTS=1`, the variable reaches the runner that `xcodebuild` launches, but that runner has its own TCC identity without access, so the test skips.
+- CI — run [43621168784](https://github.com/edgarslima/heed/actions/runs/43621168784) on `0cb7463` (covers the `d1ef9de` code): success on macOS 15, Windows 2025, Ubuntu 24.04. macOS gate: Swift 313/321, shared Rust 447/456, Tauri 9/9, frontend 6/6 and 2/2; Windows and Ubuntu skip the Swift scope and build the probe's non-macOS stub. The default live XCTest ran on the runner without hanging on a prompt.
+- Pending — review and merge with P03a and P01.1.
 - Next step — P01.3 with the owner present.
