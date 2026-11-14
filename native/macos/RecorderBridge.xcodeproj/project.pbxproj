@@ -7,10 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A3100317C7A174409C00B55 /* microphone-capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1BF81EFD26447F4CA3E59E7 /* microphone-capture.swift */; };
+		5E2C5A6E65A8DE228EAE6A71 /* fake-core-audio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 681DD7F5BD89A35B70FAD6B6 /* fake-core-audio.swift */; };
 		8C2496FC32255BD21F16FB9D /* RecorderBridge.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A2D14675BBDA9F30D55D2137 /* RecorderBridge.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A5F59F6684002BEC1AC7AEAC /* recorder-bridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41ED46B404B4D6A5F328233A /* recorder-bridge.swift */; };
 		C5F182CE3854880604A142F9 /* recorder-bridge-tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCC2EAA3FADB1C34B7512C2 /* recorder-bridge-tests.swift */; };
+		CD73CCBB2A5E76BAAC26AF50 /* core-audio-live-tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A85265D8949415151B81F2 /* core-audio-live-tests.swift */; };
 		D69CC648427F7320D9F343D8 /* RecorderBridge.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2D14675BBDA9F30D55D2137 /* RecorderBridge.framework */; };
+		D974C02661B09EF52868BAE0 /* core-audio-calls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 284C20285BB17E87AECE4257 /* core-audio-calls.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,9 +43,13 @@
 
 /* Begin PBXFileReference section */
 		1F221D9AA063173AEA4BFD1A /* RecorderBridgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RecorderBridgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		284C20285BB17E87AECE4257 /* core-audio-calls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "core-audio-calls.swift"; sourceTree = "<group>"; };
 		41ED46B404B4D6A5F328233A /* recorder-bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "recorder-bridge.swift"; sourceTree = "<group>"; };
+		681DD7F5BD89A35B70FAD6B6 /* fake-core-audio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "fake-core-audio.swift"; sourceTree = "<group>"; };
 		9CCC2EAA3FADB1C34B7512C2 /* recorder-bridge-tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "recorder-bridge-tests.swift"; sourceTree = "<group>"; };
 		A2D14675BBDA9F30D55D2137 /* RecorderBridge.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RecorderBridge.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A6A85265D8949415151B81F2 /* core-audio-live-tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "core-audio-live-tests.swift"; sourceTree = "<group>"; };
+		E1BF81EFD26447F4CA3E59E7 /* microphone-capture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "microphone-capture.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,6 +67,8 @@
 		0E8C8D0A9BA978FE4756CDD2 /* RecorderBridgeTests */ = {
 			isa = PBXGroup;
 			children = (
+				A6A85265D8949415151B81F2 /* core-audio-live-tests.swift */,
+				681DD7F5BD89A35B70FAD6B6 /* fake-core-audio.swift */,
 				9CCC2EAA3FADB1C34B7512C2 /* recorder-bridge-tests.swift */,
 			);
 			name = RecorderBridgeTests;
@@ -68,6 +78,8 @@
 		4A30765FDE7CF3694D21E9A2 /* RecorderBridge */ = {
 			isa = PBXGroup;
 			children = (
+				284C20285BB17E87AECE4257 /* core-audio-calls.swift */,
+				E1BF81EFD26447F4CA3E59E7 /* microphone-capture.swift */,
 				41ED46B404B4D6A5F328233A /* recorder-bridge.swift */,
 			);
 			name = RecorderBridge;
@@ -168,6 +180,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D974C02661B09EF52868BAE0 /* core-audio-calls.swift in Sources */,
+				5A3100317C7A174409C00B55 /* microphone-capture.swift in Sources */,
 				A5F59F6684002BEC1AC7AEAC /* recorder-bridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -176,6 +190,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CD73CCBB2A5E76BAAC26AF50 /* core-audio-live-tests.swift in Sources */,
+				5E2C5A6E65A8DE228EAE6A71 /* fake-core-audio.swift in Sources */,
 				C5F182CE3854880604A142F9 /* recorder-bridge-tests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
