@@ -1,8 +1,11 @@
-//! P01.2 probe: captures the default input device through the Swift bridge and writes
-//! an IEEE-float WAV plus a JSON summary of the observed format and timestamps.
+//! P01 probe: captures the default microphone, the system audio, or both at once through
+//! the Swift bridge and writes one IEEE-float WAV per source plus a JSON summary of the
+//! observed formats and timestamps.
 //!
-//! Usage: `cargo run -p recorder-core --example macos-microphone-probe -- \
-//!   --output <path.wav> [--seconds <n>] [--request-access]`
+//! Usage: `cargo run -p recorder-core --example macos-capture-probe -- --output <path.wav> \
+//!   [--source microphone|system|both] [--seconds <n>] [--request-access]`
+//!
+//! With `--source both`, the files are `<stem>-microphone.wav` and `<stem>-system.wav`.
 //!
 //! A validation tool, not shipped code. Blocks travel from the audio callback through the
 //! P03a block queue to a writer thread, as the engine will receive them.
@@ -14,7 +17,7 @@ fn main() -> std::process::ExitCode {
 
 #[cfg(not(target_os = "macos"))]
 fn main() -> std::process::ExitCode {
-    eprintln!("the microphone probe runs on macOS only");
+    eprintln!("the capture probe runs on macOS only");
     std::process::ExitCode::from(2)
 }
 
@@ -23,7 +26,7 @@ mod probe {
     use std::ffi::c_void;
     use std::fs::File;
     use std::io::{BufWriter, Seek, SeekFrom, Write};
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::process::ExitCode;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -39,6 +42,7 @@ mod probe {
 
     const RECORDER_OK: i32 = 0;
     const RECORDER_SOURCE_MICROPHONE: u32 = 1;
+    const RECORDER_SOURCE_SYSTEM: u32 = 2;
     const RECORDER_SAMPLE_F32: u32 = 1;
     const RECORDER_ACCESS_GRANTED: u32 = 2;
     const BLOCK_HOST_TIME_VALID: u32 = 1 << 0;
@@ -87,13 +91,56 @@ mod probe {
         fn recorder_last_os_status(handle: *mut c_void, status: *mut i32) -> i32;
     }
 
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Source {
+        Microphone,
+        System,
+    }
+
+    impl Source {
+        fn name(self) -> &'static str {
+            match self {
+                Self::Microphone => "microphone",
+                Self::System => "system",
+            }
+        }
+
+        fn kind(self) -> u32 {
+            match self {
+                Self::Microphone => RECORDER_SOURCE_MICROPHONE,
+                Self::System => RECORDER_SOURCE_SYSTEM,
+            }
+        }
+    }
+
     struct Options {
         output: PathBuf,
+        sources: Vec<Source>,
         seconds: u64,
         request_access: bool,
     }
 
-    /// Owned by the audio thread between `recorder_start` and the return of `recorder_stop`.
+    /// One prepared source: its bridge handle, callback state, and writer thread.
+    struct Capture {
+        source: Source,
+        output: PathBuf,
+        handle: *mut c_void,
+        native: RecorderFormat,
+        state: *mut CallbackState,
+        done: Arc<AtomicBool>,
+        writer: thread::JoinHandle<std::io::Result<WriterResult>>,
+        start_result: i32,
+        stop_result: i32,
+    }
+
+    struct Report {
+        source: Source,
+        output: PathBuf,
+        native: RecorderFormat,
+        state: Box<CallbackState>,
+        written: WriterResult,
+    }
+
     struct CallbackState {
         producer: BlockProducer,
         format: AudioFormat,
@@ -127,32 +174,44 @@ mod probe {
     }
 
     pub fn run() -> ExitCode {
-        match parse_options() {
-            Ok(options) => match capture(&options) {
-                Ok(summary) => {
-                    println!("{summary}");
-                    ExitCode::SUCCESS
-                }
-                Err(message) => {
-                    eprintln!("probe failed: {message}");
-                    ExitCode::FAILURE
-                }
-            },
+        let options = match parse_options() {
+            Ok(options) => options,
             Err(message) => {
                 eprintln!("{message}");
-                ExitCode::from(2)
+                return ExitCode::from(2);
+            }
+        };
+        match capture(&options) {
+            Ok(summary) => {
+                println!("{summary}");
+                ExitCode::SUCCESS
+            }
+            Err(message) => {
+                eprintln!("probe failed: {message}");
+                ExitCode::FAILURE
             }
         }
     }
 
     fn parse_options() -> Result<Options, String> {
+        let usage = "usage: --output <path.wav> [--source microphone|system|both] [--seconds <n>] \
+                     [--request-access]";
         let mut output = None;
+        let mut sources = vec![Source::Microphone];
         let mut seconds = 60;
         let mut request_access = false;
         let mut args = std::env::args().skip(1);
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--output" => output = args.next().map(PathBuf::from),
+                "--source" => {
+                    sources = match args.next().as_deref() {
+                        Some("microphone") => vec![Source::Microphone],
+                        Some("system") => vec![Source::System],
+                        Some("both") => vec![Source::Microphone, Source::System],
+                        _ => return Err("--source needs microphone, system, or both".into()),
+                    };
+                }
                 "--seconds" => {
                     seconds = args
                         .next()
@@ -164,57 +223,133 @@ mod probe {
                 other => return Err(format!("unknown argument: {other}")),
             }
         }
-        let output =
-            output.ok_or("usage: --output <path.wav> [--seconds <n>] [--request-access]")?;
         Ok(Options {
-            output,
+            output: output.ok_or(usage)?,
+            sources,
             seconds,
             request_access,
         })
     }
 
     fn capture(options: &Options) -> Result<String, String> {
+        if options.sources.contains(&Source::Microphone) {
+            check_microphone_access(options.request_access)?;
+        }
+        let mut captures = Vec::new();
+        for &source in &options.sources {
+            let output = output_path(&options.output, source, options.sources.len() > 1);
+            match open(source, output) {
+                Ok(capture) => captures.push(capture),
+                Err(message) => {
+                    for capture in captures {
+                        let _ = finish(capture);
+                    }
+                    return Err(message);
+                }
+            }
+        }
+
+        // Every source is prepared before the first starts, so the start offset excludes setup.
+        let started = Instant::now();
+        for capture in &mut captures {
+            // SAFETY: `capture.state` stays allocated until `finish` frees it after the handle
+            // is destroyed, which the bridge guarantees is after the last callback; only the
+            // audio thread touches it in between.
+            capture.start_result =
+                unsafe { recorder_start(capture.handle, Some(on_block), capture.state.cast()) };
+        }
+        if captures
+            .iter()
+            .all(|capture| capture.start_result == RECORDER_OK)
+        {
+            thread::sleep(Duration::from_secs(options.seconds));
+        }
+        for capture in &mut captures {
+            // SAFETY: `handle` is live; stop is idempotent and safe when start failed.
+            capture.stop_result = unsafe { recorder_stop(capture.handle) };
+        }
+        let elapsed = started.elapsed();
+
+        let mut reports = Vec::new();
+        let mut failure = None;
+        for capture in captures {
+            match finish(capture) {
+                Ok(report) => reports.push(report),
+                Err(message) => {
+                    failure.get_or_insert(message);
+                }
+            }
+        }
+        if let Some(message) = failure {
+            return Err(message);
+        }
+        if reports
+            .iter()
+            .any(|report| report.source == Source::System && report.written.peak <= 0.0)
+        {
+            eprintln!(
+                "warning: the system capture is all zeros; check that this terminal has \
+                 System Audio Recording access and that audio was playing"
+            );
+        }
+        Ok(summary(options, &reports, elapsed))
+    }
+
+    fn check_microphone_access(request: bool) -> Result<(), String> {
         let mut access = 0;
         // SAFETY: `access` is a live u32; the call blocks on this thread until it returns.
-        let result = unsafe {
-            recorder_microphone_access(u32::from(options.request_access), &raw mut access)
-        };
+        let result = unsafe { recorder_microphone_access(u32::from(request), &raw mut access) };
         if result != RECORDER_OK || access != RECORDER_ACCESS_GRANTED {
             return Err(format!(
                 "microphone access is not granted (result {result}, access {access}); \
                  rerun with --request-access or allow it in System Settings"
             ));
         }
+        Ok(())
+    }
 
+    fn output_path(output: &Path, source: Source, suffixed: bool) -> PathBuf {
+        if !suffixed {
+            return output.to_path_buf();
+        }
+        let stem = output.file_stem().unwrap_or_default().to_string_lossy();
+        let extension = output.extension().map_or(String::new(), |extension| {
+            format!(".{}", extension.to_string_lossy())
+        });
+        output.with_file_name(format!("{stem}-{}{extension}", source.name()))
+    }
+
+    fn open(source: Source, output: PathBuf) -> Result<Capture, String> {
         let mut handle = std::ptr::null_mut();
-        // SAFETY: `handle` is a live pointer slot; the handle is destroyed exactly once below.
+        // SAFETY: `handle` is a live pointer slot; `finish` or the error path below destroys
+        // the handle exactly once.
         let result = unsafe { recorder_create(&raw mut handle) };
         if result != RECORDER_OK {
             return Err(format!("recorder_create returned {result}"));
         }
-        let outcome = capture_with(handle, options);
-        // SAFETY: `handle` came from `recorder_create` and is not used after this call.
-        let destroyed = unsafe { recorder_destroy(handle) };
-        let summary = outcome?;
-        if destroyed != RECORDER_OK {
-            return Err(format!("recorder_destroy returned {destroyed}"));
-        }
-        Ok(summary)
+        open_with(source, output, handle).inspect_err(|_| {
+            // SAFETY: `handle` came from `recorder_create`, was never started, and is not
+            // used after this call.
+            unsafe { recorder_destroy(handle) };
+        })
     }
 
-    fn capture_with(handle: *mut c_void, options: &Options) -> Result<String, String> {
+    fn open_with(source: Source, output: PathBuf, handle: *mut c_void) -> Result<Capture, String> {
+        let name = source.name();
         let mut native = RecorderFormat::default();
         // SAFETY: `handle` is live and `native` is a writable `recorder_format`.
-        let result =
-            unsafe { recorder_prepare(handle, RECORDER_SOURCE_MICROPHONE, &raw mut native) };
+        let result = unsafe { recorder_prepare(handle, source.kind(), &raw mut native) };
         if result != RECORDER_OK {
             return Err(format!(
-                "recorder_prepare returned {result} (OSStatus {})",
+                "{name}: recorder_prepare returned {result} (OSStatus {})",
                 last_os_status(handle)
             ));
         }
         if native.sample_format != RECORDER_SAMPLE_F32 {
-            return Err(format!("unexpected sample format {}", native.sample_format));
+            return Err(format!(
+                "{name}: unexpected sample format {}",
+                native.sample_format
+            ));
         }
         let channel_count = u16::try_from(native.channel_count).map_err(|_| "channel count")?;
         let layout = ChannelLayout::from_channel_count(channel_count)
@@ -233,14 +368,13 @@ mod probe {
         );
         let (producer, consumer) = block_queue(sizing);
 
-        let mut file = File::create(&options.output).map_err(|error| error.to_string())?;
+        let mut file = File::create(&output).map_err(|error| error.to_string())?;
         write_wav_header(&mut file, &format, 0).map_err(|error| error.to_string())?;
         let done = Arc::new(AtomicBool::new(false));
         let writer = {
             let done = Arc::clone(&done);
             thread::spawn(move || write_blocks(consumer, file, format, &done))
         };
-
         let state = Box::into_raw(Box::new(CallbackState {
             producer,
             format,
@@ -260,35 +394,57 @@ mod probe {
             min_block_frames: u32::MAX,
             max_block_frames: 0,
         }));
-        let started = Instant::now();
-        // SAFETY: `state` stays allocated until after `recorder_stop` returns, which the
-        // bridge guarantees is after the last callback; only the audio thread touches it
-        // in between.
-        let result = unsafe { recorder_start(handle, Some(on_block), state.cast()) };
-        if result == RECORDER_OK {
-            thread::sleep(Duration::from_secs(options.seconds));
-        }
-        // SAFETY: `handle` is live; stop is idempotent and safe when start failed.
-        let stopped = unsafe { recorder_stop(handle) };
-        let elapsed = started.elapsed();
-        // SAFETY: no callback runs after `recorder_stop` returned, so this thread owns
-        // `state` again and frees it exactly once.
-        let state = unsafe { Box::from_raw(state) };
-        done.store(true, Ordering::Release);
-        let written = writer
+        Ok(Capture {
+            source,
+            output,
+            handle,
+            native,
+            state,
+            done,
+            writer,
+            start_result: RECORDER_OK,
+            stop_result: RECORDER_OK,
+        })
+    }
+
+    /// Destroys the handle, then reclaims the callback state and joins the writer.
+    fn finish(capture: Capture) -> Result<Report, String> {
+        let name = capture.source.name();
+        let os_status = last_os_status(capture.handle);
+        // SAFETY: `handle` came from `recorder_create` and is not used after this call.
+        // Destroy stops the handle first, so no callback runs once it returns.
+        let destroyed = unsafe { recorder_destroy(capture.handle) };
+        // SAFETY: no callback runs after the destroy above, so this thread owns `state` again
+        // and frees it exactly once.
+        let state = unsafe { Box::from_raw(capture.state) };
+        capture.done.store(true, Ordering::Release);
+        let written = capture
+            .writer
             .join()
-            .map_err(|_| "the writer thread panicked")?
-            .map_err(|error| format!("writing the WAV failed: {error}"))?;
-        if result != RECORDER_OK {
+            .map_err(|_| format!("{name}: the writer thread panicked"))?
+            .map_err(|error| format!("{name}: writing the WAV failed: {error}"))?;
+        if capture.start_result != RECORDER_OK {
             return Err(format!(
-                "recorder_start returned {result} (OSStatus {})",
-                last_os_status(handle)
+                "{name}: recorder_start returned {} (OSStatus {os_status})",
+                capture.start_result
             ));
         }
-        if stopped != RECORDER_OK {
-            return Err(format!("recorder_stop returned {stopped}"));
+        if capture.stop_result != RECORDER_OK {
+            return Err(format!(
+                "{name}: recorder_stop returned {} (OSStatus {os_status})",
+                capture.stop_result
+            ));
         }
-        Ok(summary(options, &native, &state, &written, elapsed))
+        if destroyed != RECORDER_OK {
+            return Err(format!("{name}: recorder_destroy returned {destroyed}"));
+        }
+        Ok(Report {
+            source: capture.source,
+            output: capture.output,
+            native: capture.native,
+            state,
+            written,
+        })
     }
 
     fn last_os_status(handle: *mut c_void) -> i32 {
@@ -297,8 +453,6 @@ mod probe {
         unsafe { recorder_last_os_status(handle, &raw mut status) };
         status
     }
-
-    /// Audio thread: copies the borrowed samples into the queue without allocating.
     unsafe extern "C" fn on_block(context: *mut c_void, block: *const RecorderBlock) {
         // SAFETY: `context` is the `CallbackState` passed to `recorder_start`, used only on
         // this thread until stop returns; `block` is valid for the duration of this call.
@@ -455,13 +609,70 @@ mod probe {
         clippy::cast_possible_truncation,
         reason = "frame and nanosecond counts stay far below 2^52 in a probe run; RMS fits f32"
     )]
-    fn summary(
-        options: &Options,
-        native: &RecorderFormat,
-        state: &CallbackState,
-        written: &WriterResult,
-        elapsed: Duration,
-    ) -> String {
+    fn summary(options: &Options, reports: &[Report], elapsed: Duration) -> String {
+        let sources: Vec<String> = reports.iter().map(source_summary).collect();
+        let concurrent = match reports {
+            [microphone, system] => concurrent_summary(microphone, system),
+            _ => String::new(),
+        };
+        format!(
+            "{{\"probe\":\"macos-capture\",\"requestedSeconds\":{},\"elapsedSeconds\":{:.3},\
+             \"sources\":[{}]{concurrent}}}",
+            options.seconds,
+            elapsed.as_secs_f64(),
+            sources.join(","),
+        )
+    }
+
+    /// Frames per second of host time between the first and the last timestamped block.
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "frame and nanosecond counts stay far below 2^52 in a probe run"
+    )]
+    fn host_measured_rate_hz(state: &CallbackState) -> f64 {
+        let span_ns = state
+            .first_host_time_ns
+            .map_or(0, |first| state.last_host_time_ns.saturating_sub(first));
+        if span_ns == 0 {
+            0.0
+        } else {
+            state.last_block_start_frame as f64 * 1e9 / span_ns as f64
+        }
+    }
+
+    /// Start offset and relative clock drift between the two sources, for P03b.
+    fn concurrent_summary(microphone: &Report, system: &Report) -> String {
+        let offset_ns = match (
+            microphone.state.first_host_time_ns,
+            system.state.first_host_time_ns,
+        ) {
+            (Some(microphone), Some(system)) => {
+                (i128::from(system) - i128::from(microphone)).to_string()
+            }
+            _ => "null".into(),
+        };
+        let ratio = |report: &Report| {
+            host_measured_rate_hz(&report.state) / f64::from(report.native.sample_rate_hz)
+        };
+        format!(
+            ",\"concurrent\":{{\"startOffsetNs\":{offset_ns},\"relativeDriftPpm\":{:.3}}}",
+            (ratio(system) - ratio(microphone)) * 1e6
+        )
+    }
+
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        reason = "frame counts stay far below 2^52 in a probe run; RMS fits f32"
+    )]
+    fn source_summary(report: &Report) -> String {
+        let Report {
+            source,
+            output,
+            native,
+            state,
+            written,
+        } = report;
         let sample_count = written.frames * u64::from(native.channel_count);
         let rms = if sample_count == 0 {
             0.0
@@ -471,31 +682,24 @@ mod probe {
         let host_span_ns = state
             .first_host_time_ns
             .map_or(0, |first| state.last_host_time_ns.saturating_sub(first));
-        let measured_rate_hz = if host_span_ns == 0 {
-            0.0
-        } else {
-            state.last_block_start_frame as f64 * 1e9 / host_span_ns as f64
-        };
         format!(
             concat!(
-                "{{\"probe\":\"macos-microphone\",\"output\":\"{}\",\"requestedSeconds\":{},",
-                "\"elapsedSeconds\":{:.3},\"format\":{{\"sampleRateHz\":{},\"channelCount\":{},",
-                "\"sampleFormat\":\"f32\",\"maxBlockFrames\":{}}},\"callbacks\":{},",
+                "{{\"source\":\"{}\",\"output\":\"{}\",\"format\":{{\"sampleRateHz\":{},",
+                "\"channelCount\":{},\"sampleFormat\":\"f32\",\"maxBlockFrames\":{}}},\"callbacks\":{},",
                 "\"blockFrames\":{{\"min\":{},\"max\":{}}},\"blocksWritten\":{},\"framesWritten\":{},",
                 "\"writtenSeconds\":{:.3},\"queueDrops\":{{\"blocks\":{},\"frames\":{}}},",
                 "\"discontinuityBlocks\":{},\"bridgeDiscontinuities\":{},\"sampleTimeGaps\":{},",
                 "\"maxSampleTimeGapFrames\":{:.1},\"invalidHostTimes\":{},\"invalidSampleTimes\":{},",
-                "\"firstHostTimeNs\":{},\"hostSpanNs\":{},\"hostMeasuredRateHz\":{:.3},",
-                "\"peakDbfs\":{:.2},\"rmsDbfs\":{:.2},\"nonFiniteSamples\":{}}}"
+                "\"firstHostTimeNs\":{},\"lastHostTimeNs\":{},\"hostSpanNs\":{},",
+                "\"hostMeasuredRateHz\":{:.3},\"peakDbfs\":{:.2},\"rmsDbfs\":{:.2},",
+                "\"allZero\":{},\"nonFiniteSamples\":{}}}"
             ),
-            options
-                .output
+            source.name(),
+            output
                 .display()
                 .to_string()
                 .replace('\\', "\\\\")
                 .replace('"', "\\\""),
-            options.seconds,
-            elapsed.as_secs_f64(),
             native.sample_rate_hz,
             native.channel_count,
             native.max_block_frames,
@@ -518,10 +722,12 @@ mod probe {
             state.invalid_host_times,
             state.invalid_sample_times,
             state.first_host_time_ns.unwrap_or(0),
+            state.last_host_time_ns,
             host_span_ns,
-            measured_rate_hz,
+            host_measured_rate_hz(state),
             amplitude_to_dbfs(written.peak),
             amplitude_to_dbfs(rms as f32),
+            written.peak <= 0.0,
             written.non_finite,
         )
     }

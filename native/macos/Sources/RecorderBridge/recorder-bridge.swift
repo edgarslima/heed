@@ -1,15 +1,27 @@
 import CoreAudio
 
-/// The object behind an opaque `recorder_handle`.
+/// The object behind an opaque `recorder_handle`: one capture source at a time.
 final class RecorderHandle {
-    let capture: MicrophoneCapture
+    let microphone: MicrophoneCapture
+    let system: SystemCapture
+    private(set) var capture: CaptureSession
 
-    init(calls: CoreAudioCalls) {
-        capture = MicrophoneCapture(calls: calls)
+    init(calls: CoreAudioCalls, systemCalls: SystemAudioCalls) {
+        microphone = MicrophoneCapture(calls: calls)
+        system = SystemCapture(calls: systemCalls)
+        capture = microphone
+    }
+
+    /// Switches to the requested source; fails while the current one is prepared or running.
+    func select(_ sourceKind: UInt32) -> BridgeResult {
+        guard capture.isIdle else { return .invalidState }
+        capture = sourceKind == sourceKindSystem ? system : microphone
+        return .ok
     }
 }
 
 let sourceKindMicrophone: UInt32 = 1
+let sourceKindSystem: UInt32 = 2
 
 // Each entry point validates its pointers and forwards to a testable function that takes
 // the Core Audio calls explicitly. No Swift error crosses the C ABI.
@@ -43,12 +55,14 @@ func listSources(_ count: UnsafeMutablePointer<UInt32>?, calls: CoreAudioCalls) 
 
 @_cdecl("recorder_create")
 public func recorderCreate(_ output: UnsafeMutablePointer<UnsafeMutableRawPointer?>?) -> Int32 {
-    createHandle(output, calls: .live)
+    createHandle(output, calls: .live, systemCalls: .live)
 }
 
-func createHandle(_ output: UnsafeMutablePointer<UnsafeMutableRawPointer?>?, calls: CoreAudioCalls) -> Int32 {
+func createHandle(
+    _ output: UnsafeMutablePointer<UnsafeMutableRawPointer?>?, calls: CoreAudioCalls, systemCalls: SystemAudioCalls
+) -> Int32 {
     guard let output else { return BridgeResult.invalidArgument.rawValue }
-    output.pointee = Unmanaged.passRetained(RecorderHandle(calls: calls)).toOpaque()
+    output.pointee = Unmanaged.passRetained(RecorderHandle(calls: calls, systemCalls: systemCalls)).toOpaque()
     return BridgeResult.ok.rawValue
 }
 
@@ -56,11 +70,14 @@ func createHandle(_ output: UnsafeMutablePointer<UnsafeMutableRawPointer?>?, cal
 public func recorderPrepare(
     _ handle: UnsafeMutableRawPointer?, _ sourceKind: UInt32, _ format: UnsafeMutableRawPointer?
 ) -> Int32 {
-    guard let handle, let format, sourceKind == sourceKindMicrophone else {
+    guard let handle, let format, sourceKind == sourceKindMicrophone || sourceKind == sourceKindSystem else {
         return BridgeResult.invalidArgument.rawValue
     }
+    let recorder = recorder(handle)
+    let selected = recorder.select(sourceKind)
+    guard selected == .ok else { return selected.rawValue }
     var negotiated = RecorderFormat()
-    let result = recorder(handle).capture.prepare(into: &negotiated)
+    let result = recorder.capture.prepare(into: &negotiated)
     if result == .ok {
         format.assumingMemoryBound(to: RecorderFormat.self).pointee = negotiated
     }

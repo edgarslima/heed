@@ -22,7 +22,10 @@ enum recorder_result {
 
 enum recorder_source_kind {
     /* The current default input device. */
-    RECORDER_SOURCE_MICROPHONE = 1
+    RECORDER_SOURCE_MICROPHONE = 1,
+    /* Everything the Mac plays, through a global process tap clocked by the default
+     * output device. Without the System Audio Recording grant it delivers zeros. */
+    RECORDER_SOURCE_SYSTEM = 2
 };
 
 enum recorder_sample_format {
@@ -76,15 +79,17 @@ typedef void (*recorder_block_callback)(void *context, const recorder_block *blo
 /* Reports microphone access; when `request` is nonzero and access is not yet
  * determined, asks the user and blocks until they answer. */
 int32_t recorder_microphone_access(uint32_t request, uint32_t *access);
-/* Counts the available sources: 1 when a default input device exists. */
+/* Counts the available microphones: 1 when a default input device exists. */
 int32_t recorder_list(uint32_t *count);
 int32_t recorder_create(recorder_handle **handle);
-/* Opens the source and writes the negotiated format. Requires granted access. */
+/* Opens the source and writes the negotiated format. The microphone requires granted
+ * access. A handle captures one source; it switches source only when idle. */
 int32_t recorder_prepare(recorder_handle *handle, uint32_t source_kind, recorder_format *format);
 /* Starts delivering blocks to `callback` with `context`. */
 int32_t recorder_start(recorder_handle *handle, recorder_block_callback callback, void *context);
 /* Idempotent. When it returns, no callback is running or will run again, and
- * the handle is back in the created state. */
+ * the handle is back in the created state. For the system source, the IOProc,
+ * aggregate device, and tap are destroyed in that order. */
 int32_t recorder_stop(recorder_handle *handle);
 /* Stops the handle if needed, then frees it. */
 int32_t recorder_destroy(recorder_handle *handle);

@@ -29,6 +29,36 @@ struct RecorderBlock {
     var flags: UInt32
 }
 
+extension RecorderBlock {
+    /// Builds a block from an audio-thread timestamp; never allocates.
+    init(
+        samples: UnsafePointer<Float>, frameCount: UInt32, stamp: AudioTimeStamp, clock: HostClock,
+        discontinuity: Bool
+    ) {
+        var flags: UInt32 = discontinuity ? blockDiscontinuity : 0
+        var hostTimeNs: UInt64 = 0
+        if stamp.mFlags.contains(.hostTimeValid) {
+            flags |= blockHostTimeValid
+            hostTimeNs = clock.nanoseconds(stamp.mHostTime)
+        }
+        if stamp.mFlags.contains(.sampleTimeValid) {
+            flags |= blockSampleTimeValid
+        }
+        self.init(
+            samples: samples, hostTimeNs: hostTimeNs, sampleTime: stamp.mSampleTime, frameCount: frameCount,
+            flags: flags)
+    }
+}
+
+/// One capture source behind a handle. All methods run on the handle's control thread.
+protocol CaptureSession: AnyObject {
+    var isIdle: Bool { get }
+    var lastOSStatus: OSStatus { get }
+    func prepare(into format: inout RecorderFormat) -> BridgeResult
+    func start(callback: @escaping RecorderBlockCallback, context: UnsafeMutableRawPointer?) -> BridgeResult
+    @discardableResult func stop() -> BridgeResult
+}
+
 /// `recorder_block_callback`; the block argument points to a `RecorderBlock`.
 public typealias RecorderBlockCallback = @convention(c) (UnsafeMutableRawPointer?, UnsafeRawPointer?) -> Void
 
@@ -52,7 +82,7 @@ private let outputElement: AudioUnitElement = 0
 /// `start` begins delivering blocks; `stop` stops, uninitializes, and disposes the unit
 /// in reverse creation order and returns to idle. All methods run on one control thread,
 /// except `deliver`, which runs on the audio thread and never allocates, locks, or waits.
-final class MicrophoneCapture {
+final class MicrophoneCapture: CaptureSession {
     private enum State {
         case idle
         case prepared
@@ -74,6 +104,8 @@ final class MicrophoneCapture {
 
     /// The last failed Core Audio status from a control-thread call, or `noErr`.
     private(set) var lastOSStatus: OSStatus = noErr
+
+    var isIdle: Bool { state == .idle }
 
     init(calls: CoreAudioCalls) {
         self.calls = calls
@@ -219,22 +251,9 @@ final class MicrophoneCapture {
             pendingDiscontinuity = true
             return status
         }
-        let stamp = timeStamp.pointee
-        var flags: UInt32 = pendingDiscontinuity ? blockDiscontinuity : 0
-        var hostTimeNs: UInt64 = 0
-        if stamp.mFlags.contains(.hostTimeValid) {
-            flags |= blockHostTimeValid
-            hostTimeNs = clock.nanoseconds(stamp.mHostTime)
-        }
-        if stamp.mFlags.contains(.sampleTimeValid) {
-            flags |= blockSampleTimeValid
-        }
         var block = RecorderBlock(
-            samples: UnsafePointer(samples),
-            hostTimeNs: hostTimeNs,
-            sampleTime: stamp.mSampleTime,
-            frameCount: frameCount,
-            flags: flags)
+            samples: UnsafePointer(samples), frameCount: frameCount, stamp: timeStamp.pointee, clock: clock,
+            discontinuity: pendingDiscontinuity)
         withUnsafePointer(to: &block) { callback(context, UnsafeRawPointer($0)) }
         pendingDiscontinuity = false
         return noErr

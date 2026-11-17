@@ -299,7 +299,7 @@ final class RecorderBridgeTests: XCTestCase {
 
     private func makeHandle(_ fake: FakeCoreAudio) throws -> UnsafeMutableRawPointer {
         var handle: UnsafeMutableRawPointer?
-        XCTAssertEqual(createHandle(&handle, calls: fake.calls), 0)
+        XCTAssertEqual(createHandle(&handle, calls: fake.calls, systemCalls: FakeSystemAudio().calls), 0)
         return try XCTUnwrap(handle)
     }
 

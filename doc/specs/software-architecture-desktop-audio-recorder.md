@@ -1,6 +1,6 @@
 # Software Architecture — Desktop Audio Recorder
 
-**Purpose:** Architecture decisions, capture contract, IPC, storage, and dependencies. **Audience:** Engineers and AI agents implementing or reviewing the app. **Status:** Proposed, revision 1.0. Last reviewed: 2026-11-13.
+**Purpose:** Architecture decisions, capture contract, IPC, storage, and dependencies. **Audience:** Engineers and AI agents implementing or reviewing the app. **Status:** Proposed, revision 1.0. Last reviewed: 2026-11-17.
 
 **Decision.** A Tauri 2 app per platform with a TypeScript frontend and Rust engine in the main process. Native callbacks deliver PCM to bounded queues. The WebView receives commands, state, and aggregated samples for visualization. The packaged app operates locally. [Tauri architecture](https://v2.tauri.app/concept/architecture/)
 
@@ -81,7 +81,7 @@ Accepted on 2026-11-13 from the [P03a common engine plan](../plan/desktop-audio-
 3. Use the device callback for PCM. Respect the negotiated buffer layout, convert host time to a common monotonic reference, and validate sample-time availability. The callback uses borrowed data only during the call, without transferring buffer ownership. Serialize the lifetime to release the context after confirming that callbacks have stopped. Tear down IOProc, aggregate, and tap in reverse creation order.
 4. Configure `NSAudioCaptureUsageDescription`, `NSMicrophoneUsageDescription`, and the required audio input entitlement for Hardened Runtime when required. Trigger permissions after explicit user action. Package with Developer ID and notarization. [Apple — Core Audio taps](https://developer.apple.com/documentation/coreaudio/capturing-system-audio-with-core-audio-taps) · [Apple — AUHAL](https://developer.apple.com/library/archive/technotes/tn2091/_index.html) · [Apple — entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.device.audio-input) · [Apple — notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
 
-**Implemented bridge contract (P01.2).** Recorded on 2026-11-14 from the [P01 macOS proof plan](../plan/desktop-audio-recorder-p01-macos-proof.md). The header `native/macos/include/recorder-bridge.h` is the contract.
+**Implemented bridge contract (P01.2–P01.4).** Recorded on 2026-11-14 and extended on 2026-11-17 from the [P01 macOS proof plan](../plan/desktop-audio-recorder-p01-macos-proof.md). The header `native/macos/include/recorder-bridge.h` is the contract.
 
 | Element | Implementation |
 | --- | --- |
@@ -90,6 +90,8 @@ Accepted on 2026-11-13 from the [P03a common engine plan](../plan/desktop-audio-
 | Block | `recorder_block`: borrowed `samples` valid only during the callback, `frame_count`, `host_time_ns` (mach host time in nanoseconds), `sample_time`, and flags for host time valid, sample time valid, and discontinuity (an earlier render was oversized or failed). |
 | Errors | `RECORDER_INVALID_ARGUMENT`, `RECORDER_SOURCE_UNAVAILABLE` (no default device or unsupported format), `RECORDER_INVALID_STATE`, `RECORDER_PERMISSION_DENIED` (access not granted), and `RECORDER_NATIVE_ERROR` with the `OSStatus` from `recorder_last_os_status`. |
 | Access | `recorder_microphone_access(request, &access)` reports the TCC status and, when asked, requests access and waits for the answer. |
+| System source (P01.3) | `recorder_prepare(handle, RECORDER_SOURCE_SYSTEM, &format)` creates a private, unmuted global `CATapDescription` tap and a private aggregate device clocked by the default output device, with the tap in its tap list and drift compensation on; then an IOProc. The format reports the aggregate's nominal rate, the tap's channel count (stereo mixdown), and `kAudioDevicePropertyBufferFrameSize` as `max_block_frames`. Interleaved input passes through borrowed; planar input is interleaved into a preallocated buffer. `recorder_stop` stops the device and destroys the IOProc, aggregate, and tap in that order. No public API reports the System Audio Recording grant; without it the tap delivers zeros. While nothing plays, the IOProc does not run. |
+| Handles | One handle captures one source and switches source only when idle; concurrent capture (P01.4) uses one handle per source. |
 
 ### Linux · PipeWire
 
