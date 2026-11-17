@@ -8,7 +8,7 @@ Each entry follows the checkpoint template in section 4 of the construction plan
 
 ## Next task
 
-P03a and P01.1–P01.5 are ready for review on `p03a-common-engine`. Next: P01.6 (grant, denial, and revocation in the signed probe app) in one session with the owner; `scripts/build-macos-probe-app.sh` builds and signs the bundle. P03b (timeline and resampling) can start from the P01.2–P01.5 observations.
+P03a and P01.1–P01.5 are ready for review on `p03a-common-engine`. P01.6 is blocked: permission runs against the signed probe bundle were inconclusive (see the P01.6 entry). Owner decision: accept P01 with the permission flow moved to P07.2 and P09.3, or provide a clean macOS account or VM to repeat it. P03b (timeline and resampling) can start from the P01.2–P01.5 observations.
 
 ## Repository
 
@@ -213,18 +213,14 @@ Resolved by the project owner on 2026-11-13.
   - Full local gate on macOS arm64 on 2026-11-17 (the P01.3 sequence): Swift 599/685, shared Rust 447/456, Tauri 9/9, frontend 6/6 lines and 2/2 branches; 63 Rust tests and 32 frontend and script tests passed; the Swift package ran 34 tests with the 2 hardware tests skipped.
 - Deviations from the P01.5 step plan — none. Owner audibility during the browser captures was not checked: these captures measured isolation, and P01.3 already confirmed the unmuted tap keeps playback audible.
 - Skipped scenarios — the hardware tests are skipped on CI. Two WebKit apps playing at once and PID changes during capture are not tested; both belong to P08.1.
-- CI — pending.
+- CI — run [44134345928](https://github.com/edgarslima/heed/actions/runs/44134345928) on `f45cf14` (covers the `68d006b` code): success on macOS 15, Windows 2025, Ubuntu 24.04 after a re-run of the macOS job, which GitHub again cancelled for lack of a hosted runner. macOS gate: Swift 599/685, shared Rust 447/456, Tauri 9/9, frontend 6/6 and 2/2.
 - Next step — P01.6.
 
 ## P01.6 — Permissions
 
-- Status — prepared; the grant, denial, and revocation runs are pending the owner.
-- Requirements covered — work breakdown P01.6; architecture section 3 macOS item 4 (usage descriptions, audio-input entitlement, Hardened Runtime); AC-03 groundwork.
-- Changes — `scripts/build-macos-probe-app.sh <identity>` wraps the capture probe in `HeedProbe.app` (`pro.edgarlima.heed.probe`) with `NSMicrophoneUsageDescription`, `NSAudioCaptureUsageDescription`, and `com.apple.security.device.audio-input`, signed with Hardened Runtime.
-- Evidence — built and signed on 2026-11-17 with the bench's Apple Development identity: `codesign --verify --strict` passes, flags `runtime`, the entitlement is present.
-- Checklist for the owner session. Run the bundle with `open -W --stdout <file> -a target/heed-probe/HeedProbe.app --args …` so TCC attributes requests to the bundle, not the terminal. Reset only this bundle's grants with `tccutil reset Microphone pro.edgarlima.heed.probe` and `tccutil reset AudioCapture pro.edgarlima.heed.probe`; never run `tccutil reset` without the bundle ID, which would also clear the terminal grants the P01 evidence relies on.
-  1. Microphone grant: reset, run `--source microphone --request-access --seconds 5`, click Allow; expect a nonzero capture.
-  2. Microphone denial: reset, run the same, click Don't Allow; expect `microphone access is not granted`.
-  3. Microphone revocation: after a grant, turn the bundle off in System Settings > Privacy & Security > Microphone and run again; expect the same error.
-  4. System audio grant, denial, and revocation: repeat with `--source system --seconds 5` while a tone plays; expect a nonzero capture after Allow and `allZero` after denial or revocation. Record whether macOS prompts at prepare or at start.
-- Next step — run the checklist with the owner, record results in `evidence/p01/permissions.md`, then close P01.
+- Status — blocked: the runs against the signed probe bundle were inconclusive; see [evidence/p01/permissions.md](../evidence/p01/permissions.md).
+- Requirements covered — work breakdown P01.6 (attempted); architecture section 3 macOS item 4 (usage descriptions, audio-input entitlement, Hardened Runtime); AC-03 groundwork.
+- Changes — `scripts/build-macos-probe-app.sh <identity>` wraps the capture probe in `HeedProbe.app` (`pro.edgarlima.heed.probe`) with both usage descriptions and `com.apple.security.device.audio-input`, signed with Hardened Runtime. The probe gains `--summary <path>`, so a bundle launched with `open` can report without a terminal.
+- Evidence — on 2026-11-17, with the owner present: the bundle is its own TCC client (the responsibility check returns its own PID); the first microphone and system-audio prompts appeared and were allowed. Revocation in System Settings did not stop new launches within 4 minutes, and after a bundle-only `tccutil reset`, access came back granted with no prompt. Denial was never exercised. HeedProbe's grants were left reset; the terminal's grants were never touched.
+- Pending — grant, denial, and revocation in the real signed app (P07.2) and the installed build (P09.3), ideally in a fresh macOS user account or VM.
+- Next step — owner decision: accept P01 with P01.6 moved to P07.2 and P09.3, or provide a clean account or VM to repeat it now.

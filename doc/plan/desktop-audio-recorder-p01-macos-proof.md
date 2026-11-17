@@ -11,7 +11,7 @@ Related documents: [Construction plan](desktop-audio-recorder-construction-plan.
 3. **P01.3 — System audio.** Implement the global process tap and aggregate device. Capture 60 seconds while confirming playback remains audible; verify reverse-order cleanup leaves no aggregate device behind.
 4. **P01.4 — Concurrent capture.** Capture microphone and system audio simultaneously and record the start offset and host-time observations for P03b.
 5. **P01.5 — Application scope.** Map process objects and browser helper processes; measure isolation with two distinct tones in Safari and Chrome, recording OS and browser versions.
-6. **P01.6 — Permissions.** Test grant, denial, and revocation in a signed development build. Record usage descriptions, entitlements, and observed behavior.
+6. **P01.6 — Permissions.** Test grant, denial, and revocation in a signed development build. Record usage descriptions, entitlements, and observed behavior. Attempted on 2026-11-17 with a signed probe bundle; inconclusive (see `doc/status.md`).
 
 The owner attends permission and playback checks. Record commands, environment, results, and evidence paths in `doc/status.md`; do not claim native capture from synthetic tests. Review P03a and integrate the relevant branch before considering the combined work ready for merge. Before adding Rust platform-only adapter files, extend the coverage inventory to group those files by OS as noted in the P03a checkpoint.
 
