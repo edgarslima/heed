@@ -1,6 +1,6 @@
 # Project Status — Desktop Audio Recorder
 
-**Purpose:** Execution checkpoint with the current task, last verified state, and next step. **Audience:** Engineers and AI agents (Codex, Claude Code, Cursor) starting or resuming work. **Status:** Active. Last reviewed: 2026-11-13.
+**Purpose:** Execution checkpoint with the current task, last verified state, and next step. **Audience:** Engineers and AI agents (Codex, Claude Code, Cursor) starting or resuming work. **Status:** Active. Last reviewed: 2026-11-17.
 
 Related documents: [Construction plan](plan/desktop-audio-recorder-construction-plan.md) · [Coding practices](standard/coding-practices-desktop-audio-recorder.md) · [Agent directives](okf/agent-directives.md)
 
@@ -8,7 +8,7 @@ Each entry follows the checkpoint template in section 4 of the construction plan
 
 ## Next task
 
-P03a, P01.1, and P01.2 are ready for review on `p03a-common-engine`. Next: P01.3 (global system tap and aggregate device) with the owner present to confirm playback stays audible; P01.4 then combines microphone and system capture. P03b (timeline and resampling) depends on P01.
+P03a and P01.1–P01.4 are ready for review on `p03a-common-engine`. Next: P01.5 (application scope with Safari and Chrome tones) with the owner present, then P01.6 (permissions in a signed development build; an Apple Development identity is on the bench). P03b (timeline and resampling) can start from the P01.2–P01.4 observations.
 
 ## Repository
 
@@ -166,3 +166,34 @@ Resolved by the project owner on 2026-11-13.
 - CI — run [43621168784](https://github.com/edgarslima/heed/actions/runs/43621168784) on `0cb7463` (covers the `d1ef9de` code): success on macOS 15, Windows 2025, Ubuntu 24.04. macOS gate: Swift 313/321, shared Rust 447/456, Tauri 9/9, frontend 6/6 and 2/2; Windows and Ubuntu skip the Swift scope and build the probe's non-macOS stub. The default live XCTest ran on the runner without hanging on a prompt.
 - Pending — review and merge with P03a and P01.1.
 - Next step — P01.3 with the owner present.
+
+## P01.3 — System audio
+
+- Status — ready for review on `p03a-common-engine` at `61370a7`; not merged.
+- Requirements covered — work breakdown P01.3; architecture section 3 macOS items 2–3 for **System** (global tap, aggregate device, IOProc, reverse-order teardown).
+- Changes:
+  - C ABI: `RECORDER_SOURCE_SYSTEM = 2` on the existing `recorder_prepare`, `recorder_start`, `recorder_stop`, and block callback. A handle switches source only when idle.
+  - Swift: `SystemCapture` creates a private, unmuted `CATapDescription(stereoGlobalTapButExcludeProcesses: [])`, a private aggregate device whose main sub-device is the default output device, with the tap in its tap list, drift compensation, and tap auto-start, and an IOProc. It reports the aggregate's nominal rate and `kAudioDevicePropertyBufferFrameSize`. Interleaved input passes through borrowed; planar input is interleaved into a preallocated buffer; an unexpected buffer shape or an oversized cycle marks the next block discontinuous. Teardown stops the device and destroys the IOProc, aggregate, and tap in that order, also when prepare fails partway. Calls go through `SystemAudioCalls`; XCTest drives `FakeSystemAudio`. Microphone and system blocks share one `RecorderBlock` initializer, and both captures conform to `CaptureSession`.
+  - The opt-in hardware test plays its own 440 Hz tone, captures three 1 s cycles, and checks that no callback runs after stop, that the capture is not all zeros, and that the tap and aggregate UIDs stop resolving after stop and after a failed prepare.
+  - The probe is renamed `macos-capture-probe` and takes `--source microphone|system|both`. The Xcode project was regenerated with `xcodegen`.
+- Evidence:
+  - [evidence/p01/system-audio.md](../evidence/p01/system-audio.md): a 59.979 s WAV, `pcm_f32le`, 48 kHz stereo, 512-frame blocks, no drops, gaps, or discontinuities, host clock 47,999.996 Hz, a 1 kHz tone at peak -38.90 dBFS. The owner confirmed playback stayed audible during the capture.
+  - `HEED_HARDWARE_TESTS=1 swift test --filter CoreAudioLiveTests` passed the microphone and system hardware tests on 2026-11-16.
+  - Full local gate on macOS arm64 on 2026-11-17 (`npm run build`, `cargo fmt --all -- --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo llvm-cov --locked --workspace --json --output-path coverage/rust.json`, `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `swift test`, `xcodebuild … test`, `xccov`, `npm run coverage:gate`): Swift 529/569, shared Rust 447/456, Tauri 9/9, frontend 6/6 lines and 2/2 branches; 63 Rust tests and 32 frontend and script tests passed; the Swift package ran 30 tests with the 2 hardware tests skipped.
+- Deviations from the P01.3 step plan:
+  - The IOProc does not run while nothing plays, so the hardware test plays its own tone instead of relying on ambient audio.
+  - The HAL drops a destroyed aggregate from UID translation shortly after the destroy call returns (under 100 ms observed); the hardware test polls for up to 1 s.
+  - The 60 s capture is 21 ms (two blocks) short because the first cycle arrives after `recorder_start` returns.
+- Skipped scenarios — the hardware tests are skipped on CI: runners have no System Audio Recording grant, and the default run never creates a tap. Grant, denial, and revocation stay in P01.6. Route changes of the default output device during capture are not handled yet.
+- CI — pending.
+- Next step — P01.4.
+
+## P01.4 — Concurrent capture
+
+- Status — ready for review on `p03a-common-engine` at `61370a7`; not merged.
+- Requirements covered — work breakdown P01.4; architecture section 4 (start and alignment) groundwork for P03b.
+- Changes — `macos-capture-probe --source both` prepares one handle per source, starts the microphone and then the system source, writes `<stem>-microphone.wav` and `<stem>-system.wav`, and reports `startOffsetNs` (system first-frame host time minus the microphone's) and `relativeDriftPpm`.
+- Evidence — [evidence/p01/concurrent.md](../evidence/p01/concurrent.md): 60 s of both sources with the 1 kHz tone playing; microphone 2,880,000 frames, system 2,880,512 frames; no drops, gaps, or discontinuities in either; start offset 18.68 ms; both clocks 48,000.004 Hz against the host clock, relative drift 0.000 ppm.
+- Observations for P03b — align on first-frame host time; the system source delivers nothing until playback begins, so its leading interval must be filled with silence on the timeline, not reported as a loss; the built-in input and output share a clock on this bench, so drift estimation still needs a USB or Bluetooth test.
+- CI — pending.
+- Next step — P01.5 with the owner present.

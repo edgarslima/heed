@@ -1,0 +1,68 @@
+{
+  "probe": "macos-capture",
+  "requestedSeconds": 60,
+  "elapsedSeconds": 60.082,
+  "sources": [
+    {
+      "source": "microphone",
+      "output": "evidence/p01/concurrent-60s-microphone.wav",
+      "format": {
+        "sampleRateHz": 48000,
+        "channelCount": 1,
+        "sampleFormat": "f32",
+        "maxBlockFrames": 512
+      },
+      "callbacks": 5625,
+      "blockFrames": { "min": 512, "max": 512 },
+      "blocksWritten": 5625,
+      "framesWritten": 2880000,
+      "writtenSeconds": 60.0,
+      "queueDrops": { "blocks": 0, "frames": 0 },
+      "discontinuityBlocks": 0,
+      "bridgeDiscontinuities": 0,
+      "sampleTimeGaps": 0,
+      "maxSampleTimeGapFrames": 0.0,
+      "invalidHostTimes": 0,
+      "invalidSampleTimes": 0,
+      "firstHostTimeNs": 430168827066291,
+      "lastHostTimeNs": 430228816394583,
+      "hostSpanNs": 59989328292,
+      "hostMeasuredRateHz": 48000.004,
+      "peakDbfs": -10.97,
+      "rmsDbfs": -33.08,
+      "allZero": false,
+      "nonFiniteSamples": 0
+    },
+    {
+      "source": "system",
+      "output": "evidence/p01/concurrent-60s-system.wav",
+      "format": {
+        "sampleRateHz": 48000,
+        "channelCount": 2,
+        "sampleFormat": "f32",
+        "maxBlockFrames": 512
+      },
+      "callbacks": 5626,
+      "blockFrames": { "min": 512, "max": 512 },
+      "blocksWritten": 5626,
+      "framesWritten": 2880512,
+      "writtenSeconds": 60.011,
+      "queueDrops": { "blocks": 0, "frames": 0 },
+      "discontinuityBlocks": 0,
+      "bridgeDiscontinuities": 0,
+      "sampleTimeGaps": 0,
+      "maxSampleTimeGapFrames": 0.0,
+      "invalidHostTimes": 0,
+      "invalidSampleTimes": 0,
+      "firstHostTimeNs": 430168845748125,
+      "lastHostTimeNs": 430228845743083,
+      "hostSpanNs": 59999994958,
+      "hostMeasuredRateHz": 48000.004,
+      "peakDbfs": -38.9,
+      "rmsDbfs": -42.08,
+      "allZero": false,
+      "nonFiniteSamples": 0
+    }
+  ],
+  "concurrent": { "startOffsetNs": 18681834, "relativeDriftPpm": -0.0 }
+}

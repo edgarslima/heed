@@ -1,0 +1,37 @@
+{
+  "probe": "macos-capture",
+  "requestedSeconds": 60,
+  "elapsedSeconds": 60.015,
+  "sources": [
+    {
+      "source": "system",
+      "output": "evidence/p01/system-audio-60s.wav",
+      "format": {
+        "sampleRateHz": 48000,
+        "channelCount": 2,
+        "sampleFormat": "f32",
+        "maxBlockFrames": 512
+      },
+      "callbacks": 5623,
+      "blockFrames": { "min": 512, "max": 512 },
+      "blocksWritten": 5623,
+      "framesWritten": 2878976,
+      "writtenSeconds": 59.979,
+      "queueDrops": { "blocks": 0, "frames": 0 },
+      "discontinuityBlocks": 0,
+      "bridgeDiscontinuities": 0,
+      "sampleTimeGaps": 0,
+      "maxSampleTimeGapFrames": 0.0,
+      "invalidHostTimes": 0,
+      "invalidSampleTimes": 0,
+      "firstHostTimeNs": 326860941459375,
+      "lastHostTimeNs": 326920909464416,
+      "hostSpanNs": 59968005041,
+      "hostMeasuredRateHz": 47999.996,
+      "peakDbfs": -38.9,
+      "rmsDbfs": -42.08,
+      "allZero": false,
+      "nonFiniteSamples": 0
+    }
+  ]
+}

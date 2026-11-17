@@ -83,3 +83,4 @@ Raw output in [microphone-probe-summary.json](microphone-probe-summary.json).
 - Accepted for the P01.2 gate: decodable 60 s WAV, the format matches the negotiated one, duration 60.000 s, no drops.
 - The signal is real capture, not silence: peak -25.31 dBFS, RMS -40.89 dBFS. A 2-second check of the room before the run measured peak -28.27 dBFS and RMS -40.23 dBFS, so this recording shows room sound rather than clear speech. Repeat with speech if a later step needs a speech fixture.
 - Hardware XCTest: `HEED_HARDWARE_TESTS=1 swift test --filter CoreAudioLiveTests` passed. It ran three prepare/start/stop cycles of 1 s each; no callback ran after `stop` returned.
+- The probe was renamed `macos-capture-probe` in P01.3; `--source microphone` reproduces this command.
