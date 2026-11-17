@@ -26,6 +26,6 @@ Raw output in [concurrent-probe-summary.json](concurrent-probe-summary.json); `f
 ## Observations for P03b
 
 - **Start offset.** The system source's first frame is 18.68 ms (18,681,834 ns of host time) after the microphone's first frame. Both run on 512-frame cycles of 10.67 ms, so the offset is under two cycles. The engine must align on first-frame host time, not on the order of start calls.
-- **Clocks.** Both sources measured 48,000.004 Hz against the host clock over 60 s, a relative drift of 0.000 ppm. On this bench both devices share the built-in clock. A USB or Bluetooth device would not, so P03b still needs the drift estimator; this run gives it a zero-drift baseline.
+- **Clocks.** Both sources measured 48,000.004 Hz against the host clock over 60 s. The rate comes from one block-start timestamp at each end, so it is not yet a drift estimate: no drift between the sources is resolvable at this precision; P03b needs a fit over many timestamps. On this bench both devices share the built-in clock. A USB or Bluetooth device would not, so P03b still needs the drift estimator.
 - **Frame counts.** The system file is 512 frames longer because its last block ended later before stop. The common timeline is cut to one limit at stop, as the architecture requires.
 - **Idle system output.** See [system-audio.md](system-audio.md): when nothing plays at start, the system source delivers no frames until playback begins.

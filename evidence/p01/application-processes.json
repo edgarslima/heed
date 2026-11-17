@@ -1,0 +1,38 @@
+[
+  {
+    "pid": 1818,
+    "bundleId": "com.apple.WebKit.GPU",
+    "runningOutput": true,
+    "runningInput": false
+  },
+  {
+    "pid": 75840,
+    "bundleId": "com.apple.WebKit.GPU",
+    "runningOutput": false,
+    "runningInput": false
+  },
+  {
+    "pid": 677,
+    "bundleId": "com.apple.Safari",
+    "runningOutput": false,
+    "runningInput": false
+  },
+  {
+    "pid": 74154,
+    "bundleId": "com.google.Chrome.helper",
+    "runningOutput": true,
+    "runningInput": false
+  },
+  {
+    "pid": 74155,
+    "bundleId": "com.google.Chrome.helper",
+    "runningOutput": false,
+    "runningInput": false
+  },
+  {
+    "pid": 97771,
+    "bundleId": "com.google.Chrome",
+    "runningOutput": false,
+    "runningInput": false
+  }
+]

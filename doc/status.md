@@ -8,7 +8,7 @@ Each entry follows the checkpoint template in section 4 of the construction plan
 
 ## Next task
 
-P03a and P01.1–P01.4 are ready for review on `p03a-common-engine`. Next: P01.5 (application scope with Safari and Chrome tones) with the owner present, then P01.6 (permissions in a signed development build; an Apple Development identity is on the bench). P03b (timeline and resampling) can start from the P01.2–P01.4 observations.
+P03a and P01.1–P01.5 are ready for review on `p03a-common-engine`. Next: P01.6 (grant, denial, and revocation in the signed probe app) in one session with the owner; `scripts/build-macos-probe-app.sh` builds and signs the bundle. P03b (timeline and resampling) can start from the P01.2–P01.5 observations.
 
 ## Repository
 
@@ -185,7 +185,8 @@ Resolved by the project owner on 2026-11-13.
   - The HAL drops a destroyed aggregate from UID translation shortly after the destroy call returns (under 100 ms observed); the hardware test polls for up to 1 s.
   - The 60 s capture is 21 ms (two blocks) short because the first cycle arrives after `recorder_start` returns.
 - Skipped scenarios — the hardware tests are skipped on CI: runners have no System Audio Recording grant, and the default run never creates a tap. Grant, denial, and revocation stay in P01.6. Route changes of the default output device during capture are not handled yet.
-- CI — pending.
+- CI — run [44130393399](https://github.com/edgarslima/heed/actions/runs/44130393399) on `3a4fbf9` (covers the `61370a7` code): success on macOS 15, Windows 2025, Ubuntu 24.04 after a re-run of the macOS job, which GitHub first cancelled because no hosted macOS runner picked it up. macOS gate: Swift 529/569, shared Rust 447/456, Tauri 9/9, frontend 6/6 and 2/2; Windows and Ubuntu skip the Swift scope.
+- Later change — `68d006b` (P01.5) makes the global tap exclude the recorder's own process object; the hardware test now plays its positive tone from an `afplay` child process and checks self-exclusion with an in-process tone. It passed again on 2026-11-17.
 - Next step — P01.4.
 
 ## P01.4 — Concurrent capture
@@ -193,7 +194,37 @@ Resolved by the project owner on 2026-11-13.
 - Status — ready for review on `p03a-common-engine` at `61370a7`; not merged.
 - Requirements covered — work breakdown P01.4; architecture section 4 (start and alignment) groundwork for P03b.
 - Changes — `macos-capture-probe --source both` prepares one handle per source, starts the microphone and then the system source, writes `<stem>-microphone.wav` and `<stem>-system.wav`, and reports `startOffsetNs` (system first-frame host time minus the microphone's) and `relativeDriftPpm`.
-- Evidence — [evidence/p01/concurrent.md](../evidence/p01/concurrent.md): 60 s of both sources with the 1 kHz tone playing; microphone 2,880,000 frames, system 2,880,512 frames; no drops, gaps, or discontinuities in either; start offset 18.68 ms; both clocks 48,000.004 Hz against the host clock, relative drift 0.000 ppm.
+- Evidence — [evidence/p01/concurrent.md](../evidence/p01/concurrent.md): 60 s of both sources with the 1 kHz tone playing; microphone 2,880,000 frames, system 2,880,512 frames; no drops, gaps, or discontinuities in either; start offset 18.68 ms; both clocks 48,000.004 Hz against the host clock; no relative drift is resolvable from two endpoint timestamps.
 - Observations for P03b — align on first-frame host time; the system source delivers nothing until playback begins, so its leading interval must be filled with silence on the timeline, not reported as a loss; the built-in input and output share a clock on this bench, so drift estimation still needs a USB or Bluetooth test.
-- CI — pending.
+- CI — run [44130393399](https://github.com/edgarslima/heed/actions/runs/44130393399) on `3a4fbf9` (covers the `61370a7` code): success on macOS 15, Windows 2025, Ubuntu 24.04 after a re-run of the macOS job, which GitHub first cancelled because no hosted macOS runner picked it up. macOS gate: Swift 529/569, shared Rust 447/456, Tauri 9/9, frontend 6/6 and 2/2; Windows and Ubuntu skip the Swift scope.
 - Next step — P01.5 with the owner present.
+
+## P01.5 — Application scope
+
+- Status — ready for review on `p03a-common-engine` at `68d006b`; not merged.
+- Requirements covered — work breakdown P01.5; architecture section 3 macOS item 2 for **Application** (process objects, browser helper processes, self-exclusion); RF-02 and AC-02 groundwork.
+- Changes:
+  - C ABI: `RECORDER_SOURCE_APPLICATION = 3`, `recorder_set_processes` (1–64 positive PIDs, copied, only while idle), `recorder_list_processes`, and the `recorder_process` struct (PID, running-output and running-input flags, bundle ID truncated to 255 bytes).
+  - Swift: the application source taps `CATapDescription(stereoMixdownOfProcesses:)` of the PIDs' process objects through the P01.3 aggregate and IOProc path; a PID without a process object fails prepare with source unavailable. The global tap excludes the recorder's own process object. Process listing skips a process that exits while it is listed.
+  - The probe gains `--list-processes`, `--source application --pids`, and `--tones` (Goertzel levels over the channel mean).
+- Evidence:
+  - [evidence/p01/application-scope.md](../evidence/p01/application-scope.md): Safari 27.0.1 plays through `com.apple.WebKit.GPU` (an XPC service with `launchd` as parent) and Chrome 157.0.8103.79 through a `com.google.Chrome.helper` child of the browser. In 20 s captures with 600 Hz in Safari and 1500 Hz in Chrome, the global control holds both tones at -41.09 and -41.08 dBFS. Each browser-scoped capture holds its own tone at -41.09 dBFS and the other below the probe's -120 dBFS floor: at least 79 dB of isolation. No drops, discontinuities, or gaps.
+  - The hardware tests passed on 2026-11-17, including self-exclusion: an in-process tone left the global capture with no nonzero sample.
+  - Full local gate on macOS arm64 on 2026-11-17 (the P01.3 sequence): Swift 599/685, shared Rust 447/456, Tauri 9/9, frontend 6/6 lines and 2/2 branches; 63 Rust tests and 32 frontend and script tests passed; the Swift package ran 34 tests with the 2 hardware tests skipped.
+- Deviations from the P01.5 step plan — none. Owner audibility during the browser captures was not checked: these captures measured isolation, and P01.3 already confirmed the unmuted tap keeps playback audible.
+- Skipped scenarios — the hardware tests are skipped on CI. Two WebKit apps playing at once and PID changes during capture are not tested; both belong to P08.1.
+- CI — pending.
+- Next step — P01.6.
+
+## P01.6 — Permissions
+
+- Status — prepared; the grant, denial, and revocation runs are pending the owner.
+- Requirements covered — work breakdown P01.6; architecture section 3 macOS item 4 (usage descriptions, audio-input entitlement, Hardened Runtime); AC-03 groundwork.
+- Changes — `scripts/build-macos-probe-app.sh <identity>` wraps the capture probe in `HeedProbe.app` (`pro.edgarlima.heed.probe`) with `NSMicrophoneUsageDescription`, `NSAudioCaptureUsageDescription`, and `com.apple.security.device.audio-input`, signed with Hardened Runtime.
+- Evidence — built and signed on 2026-11-17 with the bench's Apple Development identity: `codesign --verify --strict` passes, flags `runtime`, the entitlement is present.
+- Checklist for the owner session. Run the bundle with `open -W --stdout <file> -a target/heed-probe/HeedProbe.app --args …` so TCC attributes requests to the bundle, not the terminal. Reset only this bundle's grants with `tccutil reset Microphone pro.edgarlima.heed.probe` and `tccutil reset AudioCapture pro.edgarlima.heed.probe`; never run `tccutil reset` without the bundle ID, which would also clear the terminal grants the P01 evidence relies on.
+  1. Microphone grant: reset, run `--source microphone --request-access --seconds 5`, click Allow; expect a nonzero capture.
+  2. Microphone denial: reset, run the same, click Don't Allow; expect `microphone access is not granted`.
+  3. Microphone revocation: after a grant, turn the bundle off in System Settings > Privacy & Security > Microphone and run again; expect the same error.
+  4. System audio grant, denial, and revocation: repeat with `--source system --seconds 5` while a tone plays; expect a nonzero capture after Allow and `allZero` after denial or revocation. Record whether macOS prompts at prepare or at start.
+- Next step — run the checklist with the owner, record results in `evidence/p01/permissions.md`, then close P01.

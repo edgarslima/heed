@@ -1,0 +1,47 @@
+{
+  "probe": "macos-capture",
+  "requestedSeconds": 20,
+  "elapsedSeconds": 20.019,
+  "sources": [
+    {
+      "source": "application",
+      "output": "evidence/p01/application-safari-20s.wav",
+      "format": {
+        "sampleRateHz": 48000,
+        "channelCount": 2,
+        "sampleFormat": "f32",
+        "maxBlockFrames": 512
+      },
+      "callbacks": 1872,
+      "blockFrames": {
+        "min": 512,
+        "max": 512
+      },
+      "blocksWritten": 1872,
+      "framesWritten": 958464,
+      "writtenSeconds": 19.968,
+      "queueDrops": {
+        "blocks": 0,
+        "frames": 0
+      },
+      "discontinuityBlocks": 0,
+      "bridgeDiscontinuities": 0,
+      "sampleTimeGaps": 0,
+      "maxSampleTimeGapFrames": 0.0,
+      "invalidHostTimes": 0,
+      "invalidSampleTimes": 0,
+      "firstHostTimeNs": 431495286870916,
+      "lastHostTimeNs": 431515244210000,
+      "hostSpanNs": 19957339084,
+      "hostMeasuredRateHz": 47999.986,
+      "peakDbfs": -41.07,
+      "rmsDbfs": -44.09,
+      "allZero": false,
+      "nonFiniteSamples": 0,
+      "toneDbfs": {
+        "600": -41.09,
+        "1500": -120.0
+      }
+    }
+  ]
+}
