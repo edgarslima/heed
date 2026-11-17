@@ -47,6 +47,7 @@ The full list, with what each blocks and its default, is in [work breakdown sect
 
 1. **Windows 11 x64 and Ubuntu 24.04 benches.** Not available yet; P02, P03.7, P08, P09, P10, and P11 stay blocked until they exist.
 2. **Signing credentials.** Needed at P09.2 only.
+3. **P01.6 permission flow.** On this bench, developer-signed probe bundles get microphone and system-audio access without a prompt, even under fresh bundle IDs, so grant, denial, and revocation could not be verified. Default: accept P01 and verify the flow in P07.2 and P09.3 on a clean macOS account or VM. Blocks only the P01.6 sign-off.
 
 ## Resolved decisions
 
@@ -220,7 +221,7 @@ Resolved by the project owner on 2026-11-13.
 
 - Status — blocked: the runs against the signed probe bundle were inconclusive; see [evidence/p01/permissions.md](../evidence/p01/permissions.md).
 - Requirements covered — work breakdown P01.6 (attempted); architecture section 3 macOS item 4 (usage descriptions, audio-input entitlement, Hardened Runtime); AC-03 groundwork.
-- Changes — `scripts/build-macos-probe-app.sh <identity>` wraps the capture probe in `HeedProbe.app` (`pro.edgarlima.heed.probe`) with both usage descriptions and `com.apple.security.device.audio-input`, signed with Hardened Runtime. The probe gains `--summary <path>`, so a bundle launched with `open` can report without a terminal.
-- Evidence — on 2026-11-17, with the owner present: the bundle is its own TCC client (the responsibility check returns its own PID); the first microphone and system-audio prompts appeared and were allowed. Revocation in System Settings did not stop new launches within 4 minutes, and after a bundle-only `tccutil reset`, access came back granted with no prompt. Denial was never exercised. HeedProbe's grants were left reset; the terminal's grants were never touched.
+- Changes — `scripts/build-macos-probe-app.sh <identity> [dir] [bundle ID] [name]` wraps the capture probe in `HeedProbe.app` (`pro.edgarlima.heed.probe`) with both usage descriptions and `com.apple.security.device.audio-input`, signed with Hardened Runtime. The probe gains `--summary <path>`, so a bundle launched with `open` can report without a terminal.
+- Evidence — on 2026-11-17, with the owner present: the bundle is its own TCC client (the responsibility check returns its own PID); the first microphone and system-audio prompts appeared and were allowed. Revocation in System Settings did not stop new launches within 4 minutes. After a bundle-only `tccutil reset`, and also for two bundle IDs TCC had never seen, access came back granted with no prompt; no configuration profile or MDM enrollment is installed. Denial was never exercised. All probe bundles' grants were left reset; the terminal's grants were never touched.
 - Pending — grant, denial, and revocation in the real signed app (P07.2) and the installed build (P09.3), ideally in a fresh macOS user account or VM.
-- Next step — owner decision: accept P01 with P01.6 moved to P07.2 and P09.3, or provide a clean account or VM to repeat it now.
+- Next step — owner decision 3 under Open decisions.

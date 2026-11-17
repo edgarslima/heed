@@ -3,15 +3,17 @@
 # P01.6 permission tests run against a bundle with its own TCC identity, usage descriptions,
 # and the audio-input entitlement.
 #
-# Usage: scripts/build-macos-probe-app.sh <codesign identity> [output directory]
-# Run it with `open -W --stdout <file> -a <dir>/HeedProbe.app --args <probe arguments>`, so
+# Usage: scripts/build-macos-probe-app.sh <codesign identity> [output directory] [bundle ID] [name]
+# A bundle ID that TCC has never seen gives a clean permission test without `tccutil reset`.
+# Run it with `open -n -W -a <dir>/<name>.app --args <probe arguments> --summary <file>`, so
 # TCC attributes the request to the bundle instead of the terminal.
 set -euo pipefail
 
-identity=${1:?usage: build-macos-probe-app.sh <codesign identity> [output directory]}
+identity=${1:?usage: build-macos-probe-app.sh <codesign identity> [output directory] [bundle ID] [name]}
 output=${2:-target/heed-probe}
-bundle_id=pro.edgarlima.heed.probe
-app="$output/HeedProbe.app"
+bundle_id=${3:-pro.edgarlima.heed.probe}
+name=${4:-HeedProbe}
+app="$output/$name.app"
 
 cargo build --locked -p recorder-core --example macos-capture-probe
 rm -rf "$app"
@@ -25,7 +27,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <dict>
   <key>CFBundleIdentifier</key><string>$bundle_id</string>
   <key>CFBundleExecutable</key><string>heed-probe</string>
-  <key>CFBundleName</key><string>HeedProbe</string>
+  <key>CFBundleName</key><string>$name</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
   <key>CFBundleVersion</key><string>1</string>
@@ -36,7 +38,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-entitlements="$output/heed-probe.entitlements"
+entitlements="$output/$bundle_id.entitlements"
 cat > "$entitlements" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

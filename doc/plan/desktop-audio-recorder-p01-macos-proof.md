@@ -63,6 +63,8 @@ Executed on 2026-11-16 and 2026-11-17; results and deviations are in the P01.3 a
 
 ## P01.5 step plan — Application scope
 
+Executed on 2026-11-17; results are in the P01.5 entry of `doc/status.md`.
+
 **Goal:** Capture only the audio of chosen processes, map which processes carry a browser's audio, measure isolation between Safari and Chrome, and exclude the recorder from the global tap.
 
 **Decisions:**
