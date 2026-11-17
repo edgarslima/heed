@@ -5,7 +5,7 @@
 //!
 //! Usage: `cargo run -p recorder-core --example macos-capture-probe -- --output <path.wav> \
 //!   [--source microphone|system|both|application] [--pids <pid,...>] [--seconds <n>] \
-//!   [--tones <hz,...>] [--request-access]`, or `-- --list-processes`.
+//!   [--tones <hz,...>] [--summary <path.json>] [--request-access]`, or `-- --list-processes`.
 //!
 //! With `--source both`, the files are `<stem>-microphone.wav` and `<stem>-system.wav`.
 //! `--tones` reports each tone's level over the channel mean with a Goertzel filter.
@@ -140,6 +140,7 @@ mod probe {
         sources: Vec<Source>,
         pids: Vec<i32>,
         tones_hz: Vec<f64>,
+        summary: Option<PathBuf>,
         seconds: u64,
         request_access: bool,
     }
@@ -267,6 +268,13 @@ mod probe {
         match capture(&options) {
             Ok(summary) => {
                 println!("{summary}");
+                // A bundle launched with `open` has no terminal, so it can write the summary to a file.
+                if let Some(path) = &options.summary
+                    && let Err(error) = std::fs::write(path, format!("{summary}\n"))
+                {
+                    eprintln!("probe failed: cannot write the summary: {error}");
+                    return ExitCode::FAILURE;
+                }
                 ExitCode::SUCCESS
             }
             Err(message) => {
@@ -278,12 +286,14 @@ mod probe {
 
     fn parse_options() -> Result<Options, String> {
         let usage = "usage: --output <path.wav> [--source microphone|system|both|application] \
-                     [--pids <pid,...>] [--seconds <n>] [--tones <hz,...>] [--request-access], \
+                     [--pids <pid,...>] [--seconds <n>] [--tones <hz,...>] [--summary <path.json>] \
+                     [--request-access], \
                      or --list-processes";
         let mut output = None;
         let mut sources = vec![Source::Microphone];
         let mut pids = Vec::new();
         let mut tones_hz = Vec::new();
+        let mut summary = None;
         let mut seconds = 60;
         let mut request_access = false;
         let mut args = std::env::args().skip(1);
@@ -320,6 +330,7 @@ mod probe {
                         .filter(|value| (1..=3_600).contains(value))
                         .ok_or("--seconds needs a whole number from 1 to 3600")?;
                 }
+                "--summary" => summary = args.next().map(PathBuf::from),
                 "--request-access" => request_access = true,
                 other => return Err(format!("unknown argument: {other}")),
             }
@@ -332,6 +343,7 @@ mod probe {
             sources,
             pids,
             tones_hz,
+            summary,
             seconds,
             request_access,
         })
