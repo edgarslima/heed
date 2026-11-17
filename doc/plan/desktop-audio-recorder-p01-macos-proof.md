@@ -60,3 +60,21 @@ Executed on 2026-11-16 and 2026-11-17; results and deviations are in the P01.3 a
 4. With the owner present: play a 1 kHz tone through the default output while capturing 60 s of system audio; record whether playback stayed audible, the probe summary, `ffprobe` JSON, and SHA-256 in `evidence/p01/system-audio.md`.
 5. Capture both sources for 60 s with the same tone; record the start offset and host-clock observations in `evidence/p01/concurrent.md`.
 6. Run the full local gate and CI; record the results in `doc/status.md`.
+
+## P01.5 step plan — Application scope
+
+**Goal:** Capture only the audio of chosen processes, map which processes carry a browser's audio, measure isolation between Safari and Chrome, and exclude the recorder from the global tap.
+
+**Decisions:**
+
+- **ABI.** `RECORDER_SOURCE_APPLICATION = 3` captures a stereo mixdown of the processes set with `recorder_set_processes(handle, pids, count)` (1 to 64 PIDs, copied, only while idle). Prepare returns `RECORDER_INVALID_STATE` without a selection and `RECORDER_SOURCE_UNAVAILABLE` when a PID has no Core Audio process object; a process gets one only after it has used audio. `recorder_list_processes(processes, capacity, &count)` writes up to `capacity` `recorder_process` entries (PID, running-output and running-input flags, bundle ID truncated to 255 bytes and NUL-terminated) and the total count. Resolving which processes belong to a browser stays in P08.1; the probe takes PIDs.
+- **Self-exclusion.** The global tap excludes the recorder's own process object when it has one, so the recorder never captures its own playback.
+- **Seam.** Process listing and PID translation go through `SystemAudioCalls`; XCTest drives the fake. The hardware test plays its positive tone from an `afplay` child process and uses an in-process tone to check self-exclusion (no blocks or all zeros).
+- **Measurement.** The probe takes `--tones <hz,...>` and reports each tone's level in dBFS with a Goertzel filter over the channel mean, so isolation is the target tone's level minus the other tone's level. Tones are 600 Hz and 1500 Hz, which are not harmonics of each other.
+
+**Tasks:**
+
+1. Add the ABI, the listing, PID translation, and self-exclusion with fake-driven tests first; update the hardware test.
+2. Add `--list-processes`, `--source application --pids`, and `--tones` to the probe.
+3. Play 600 Hz in Safari and 1500 Hz in Chrome from local WAV files. While both play, record `--list-processes` and `ps -o pid,ppid,comm` as the process map. Capture 20 s globally as the control, then 20 s scoped to each browser's audio processes. Record OS and browser versions, commands, levels, and isolation in `evidence/p01/application-scope.md`.
+4. Run the full local gate and CI; record the results in `doc/status.md`.

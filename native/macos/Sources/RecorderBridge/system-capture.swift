@@ -1,7 +1,8 @@
 import CoreAudio
 import Foundation
 
-/// Captures everything the Mac plays through a global process tap and a private aggregate device.
+/// Captures everything the Mac plays except the recorder itself, or a stereo mixdown of chosen
+/// processes, through a process tap and a private aggregate device.
 ///
 /// Lifecycle: `prepare` creates the tap, then an aggregate device clocked by the default output
 /// device with the tap in its tap list, then the IOProc, and preallocates the interleave buffer;
@@ -30,6 +31,10 @@ final class SystemCapture: CaptureSession {
     private var context: UnsafeMutableRawPointer?
     /// Read and written only by `deliver` while running.
     private var pendingDiscontinuity = false
+
+    /// The processes to capture as a stereo mixdown, or `nil` for everything except the
+    /// recorder itself. Set by the handle while idle.
+    var includedPIDs: [pid_t]?
 
     private(set) var lastOSStatus: OSStatus = noErr
     /// Identities of the last created tap and aggregate; tests check they no longer resolve.
@@ -93,8 +98,23 @@ final class SystemCapture: CaptureSession {
         guard check(calls.deviceUID(output, &outputUID)) else { return .nativeError }
         guard !outputUID.isEmpty else { return .sourceUnavailable }
 
-        // The recorder plays no audio, so the global tap excludes no process.
-        let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
+        let description: CATapDescription
+        if let includedPIDs {
+            var objects: [AudioObjectID] = []
+            for pid in includedPIDs {
+                var object = AudioObjectID(kAudioObjectUnknown)
+                guard check(calls.processObject(pid, &object)) else { return .nativeError }
+                // A process has an audio object only after it has used Core Audio.
+                guard object != kAudioObjectUnknown else { return .sourceUnavailable }
+                objects.append(object)
+            }
+            description = CATapDescription(stereoMixdownOfProcesses: objects)
+        } else {
+            // Exclude the recorder itself so it never captures its own playback.
+            var own = AudioObjectID(kAudioObjectUnknown)
+            guard check(calls.processObject(getpid(), &own)) else { return .nativeError }
+            description = CATapDescription(stereoGlobalTapButExcludeProcesses: own == kAudioObjectUnknown ? [] : [own])
+        }
         description.uuid = UUID()
         description.name = "Heed system audio"
         description.isPrivate = true

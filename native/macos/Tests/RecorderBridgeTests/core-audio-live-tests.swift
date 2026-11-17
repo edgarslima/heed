@@ -64,9 +64,10 @@ final class CoreAudioLiveTests: XCTestCase {
         guard ProcessInfo.processInfo.environment["HEED_HARDWARE_TESTS"] == "1" else {
             throw XCTSkip("Set HEED_HARDWARE_TESTS=1 to capture system audio.")
         }
-        // The tap delivers no IO cycles while nothing plays, so the test plays its own tone.
-        let tone = try playTone()
-        defer { tone.stop() }
+        // The tap delivers no IO cycles while nothing plays, so another process plays a tone;
+        // the recorder's own playback would be excluded.
+        let player = try playToneInChildProcess()
+        defer { player.terminate() }
         for _ in 0..<3 {
             let collector = BlockCollector()
             let capture = SystemCapture(calls: .live)
@@ -89,6 +90,24 @@ final class CoreAudioLiveTests: XCTestCase {
             XCTAssertTrue(disappears(capture.aggregateUID, kAudioHardwarePropertyTranslateUIDToDevice))
             XCTAssertTrue(disappears(capture.tapUID, kAudioHardwarePropertyTranslateUIDToTap))
         }
+
+        player.terminate()
+        player.waitUntilExit()
+
+        // Self-exclusion: the global tap must not capture this process's own playback. The
+        // IOProc may not run at all, so either no blocks or only zeros pass.
+        let engine = try playTone()
+        defer { engine.stop() }
+        let collector = BlockCollector()
+        let own = SystemCapture(calls: .live)
+        var ownFormat = RecorderFormat()
+        XCTAssertEqual(own.prepare(into: &ownFormat), .ok)
+        collector.channelCount = Int(ownFormat.channelCount)
+        XCTAssertEqual(own.start(callback: BlockCollector.callback, context: collector.context), .ok)
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertEqual(own.stop(), .ok)
+        let ownPeak = collector.blocks.lazy.flatMap(\.samples).map(abs).max() ?? 0
+        XCTAssertEqual(ownPeak, 0, "the global tap captured the recorder's own playback")
 
         // A prepare that fails after creating the tap and aggregate must release both.
         var failing = SystemAudioCalls.live
@@ -122,6 +141,26 @@ final class CoreAudioLiveTests: XCTestCase {
         try engine.start()
         Thread.sleep(forTimeInterval: 0.3)
         return engine
+    }
+
+    /// Plays a soft 10 s, 440 Hz tone from an `afplay` child process.
+    private func playToneInChildProcess() throws -> Process {
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+        let frames = AVAudioFrameCount(48_000 * 10)
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames))
+        buffer.frameLength = frames
+        let samples = try XCTUnwrap(buffer.floatChannelData)[0]
+        for frame in 0..<Int(frames) {
+            samples[frame] = 0.05 * sin(2 * Float.pi * 440 * Float(frame) / 48_000)
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-tone-\(UUID().uuidString).wav")
+        try AVAudioFile(forWriting: url, settings: format.settings).write(from: buffer)
+        let player = Process()
+        player.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
+        player.arguments = [url.path]
+        try player.run()
+        Thread.sleep(forTimeInterval: 0.3)
+        return player
     }
 
     /// The HAL drops a destroyed object from UID translation shortly after the call returns.

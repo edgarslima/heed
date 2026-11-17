@@ -23,9 +23,12 @@ enum recorder_result {
 enum recorder_source_kind {
     /* The current default input device. */
     RECORDER_SOURCE_MICROPHONE = 1,
-    /* Everything the Mac plays, through a global process tap clocked by the default
-     * output device. Without the System Audio Recording grant it delivers zeros. */
-    RECORDER_SOURCE_SYSTEM = 2
+    /* Everything the Mac plays except this process, through a global process tap
+     * clocked by the default output device. Without the System Audio Recording grant
+     * it delivers zeros; while nothing plays it delivers no blocks. */
+    RECORDER_SOURCE_SYSTEM = 2,
+    /* A stereo mixdown of the processes set with recorder_set_processes. */
+    RECORDER_SOURCE_APPLICATION = 3
 };
 
 enum recorder_sample_format {
@@ -67,7 +70,21 @@ typedef struct recorder_block {
     uint32_t flags;
 } recorder_block;
 
+enum recorder_process_flags {
+    RECORDER_PROCESS_RUNNING_OUTPUT = 1u << 0,
+    RECORDER_PROCESS_RUNNING_INPUT = 1u << 1
+};
+
+/* A process that has used Core Audio. bundle_id is NUL-terminated and truncated to
+ * 255 bytes; it is empty when the process has none. */
+typedef struct recorder_process {
+    int32_t pid;
+    uint32_t flags;
+    char bundle_id[256];
+} recorder_process;
+
 _Static_assert(sizeof(recorder_format) == 16, "recorder_format layout");
+_Static_assert(sizeof(recorder_process) == 264, "recorder_process layout");
 _Static_assert(sizeof(recorder_block) == 32, "recorder_block layout");
 
 /*
@@ -81,9 +98,17 @@ typedef void (*recorder_block_callback)(void *context, const recorder_block *blo
 int32_t recorder_microphone_access(uint32_t request, uint32_t *access);
 /* Counts the available microphones: 1 when a default input device exists. */
 int32_t recorder_list(uint32_t *count);
+/* Writes up to `capacity` processes known to Core Audio and the total count;
+ * `processes` may be NULL when `capacity` is 0. */
+int32_t recorder_list_processes(recorder_process *processes, uint32_t capacity, uint32_t *count);
 int32_t recorder_create(recorder_handle **handle);
+/* Copies 1 to 64 positive PIDs for RECORDER_SOURCE_APPLICATION; only while idle.
+ * Prepare fails with RECORDER_SOURCE_UNAVAILABLE when a PID has no Core Audio
+ * process object, which a process gets only after it has used audio. */
+int32_t recorder_set_processes(recorder_handle *handle, const int32_t *pids, uint32_t count);
 /* Opens the source and writes the negotiated format. The microphone requires granted
- * access. A handle captures one source; it switches source only when idle. */
+ * access; the application source requires recorder_set_processes first. A handle
+ * captures one source; it switches source only when idle. */
 int32_t recorder_prepare(recorder_handle *handle, uint32_t source_kind, recorder_format *format);
 /* Starts delivering blocks to `callback` with `context`. */
 int32_t recorder_start(recorder_handle *handle, recorder_block_callback callback, void *context);

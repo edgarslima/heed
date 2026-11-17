@@ -1,11 +1,14 @@
-//! P01 probe: captures the default microphone, the system audio, or both at once through
-//! the Swift bridge and writes one IEEE-float WAV per source plus a JSON summary of the
-//! observed formats and timestamps.
+//! P01 probe: captures the default microphone, the system audio, the audio of chosen
+//! processes, or the microphone and system audio at once through the Swift bridge, and
+//! writes one IEEE-float WAV per source plus a JSON summary of the observed formats and
+//! timestamps.
 //!
 //! Usage: `cargo run -p recorder-core --example macos-capture-probe -- --output <path.wav> \
-//!   [--source microphone|system|both] [--seconds <n>] [--request-access]`
+//!   [--source microphone|system|both|application] [--pids <pid,...>] [--seconds <n>] \
+//!   [--tones <hz,...>] [--request-access]`, or `-- --list-processes`.
 //!
 //! With `--source both`, the files are `<stem>-microphone.wav` and `<stem>-system.wav`.
+//! `--tones` reports each tone's level over the channel mean with a Goertzel filter.
 //!
 //! A validation tool, not shipped code. Blocks travel from the audio callback through the
 //! P03a block queue to a writer thread, as the engine will receive them.
@@ -43,6 +46,9 @@ mod probe {
     const RECORDER_OK: i32 = 0;
     const RECORDER_SOURCE_MICROPHONE: u32 = 1;
     const RECORDER_SOURCE_SYSTEM: u32 = 2;
+    const RECORDER_SOURCE_APPLICATION: u32 = 3;
+    const RECORDER_PROCESS_RUNNING_OUTPUT: u32 = 1 << 0;
+    const RECORDER_PROCESS_RUNNING_INPUT: u32 = 1 << 1;
     const RECORDER_SAMPLE_F32: u32 = 1;
     const RECORDER_ACCESS_GRANTED: u32 = 2;
     const BLOCK_HOST_TIME_VALID: u32 = 1 << 0;
@@ -70,12 +76,25 @@ mod probe {
         flags: u32,
     }
 
+    #[repr(C)]
+    struct RecorderProcess {
+        pid: i32,
+        flags: u32,
+        bundle_id: [u8; 256],
+    }
+
     type BlockCallback = unsafe extern "C" fn(*mut c_void, *const RecorderBlock);
 
     #[link(name = "RecorderBridge", kind = "static")]
     unsafe extern "C" {
         fn recorder_microphone_access(request: u32, access: *mut u32) -> i32;
+        fn recorder_list_processes(
+            processes: *mut RecorderProcess,
+            capacity: u32,
+            count: *mut u32,
+        ) -> i32;
         fn recorder_create(handle: *mut *mut c_void) -> i32;
+        fn recorder_set_processes(handle: *mut c_void, pids: *const i32, count: u32) -> i32;
         fn recorder_prepare(
             handle: *mut c_void,
             source_kind: u32,
@@ -95,6 +114,7 @@ mod probe {
     enum Source {
         Microphone,
         System,
+        Application,
     }
 
     impl Source {
@@ -102,6 +122,7 @@ mod probe {
             match self {
                 Self::Microphone => "microphone",
                 Self::System => "system",
+                Self::Application => "application",
             }
         }
 
@@ -109,6 +130,7 @@ mod probe {
             match self {
                 Self::Microphone => RECORDER_SOURCE_MICROPHONE,
                 Self::System => RECORDER_SOURCE_SYSTEM,
+                Self::Application => RECORDER_SOURCE_APPLICATION,
             }
         }
     }
@@ -116,6 +138,8 @@ mod probe {
     struct Options {
         output: PathBuf,
         sources: Vec<Source>,
+        pids: Vec<i32>,
+        tones_hz: Vec<f64>,
         seconds: u64,
         request_access: bool,
     }
@@ -161,8 +185,55 @@ mod probe {
         max_block_frames: u32,
     }
 
+    /// Goertzel filter for one tone over the per-frame channel mean.
+    struct Goertzel {
+        tone_hz: f64,
+        coefficient: f64,
+        previous: f64,
+        before_previous: f64,
+        frames: u64,
+    }
+
+    impl Goertzel {
+        fn new(tone_hz: f64, sample_rate_hz: u32) -> Self {
+            Self {
+                tone_hz,
+                coefficient: 2.0
+                    * (std::f64::consts::TAU * tone_hz / f64::from(sample_rate_hz)).cos(),
+                previous: 0.0,
+                before_previous: 0.0,
+                frames: 0,
+            }
+        }
+
+        fn push(&mut self, sample: f64) {
+            let current = sample + self.coefficient * self.previous - self.before_previous;
+            self.before_previous = self.previous;
+            self.previous = current;
+            self.frames += 1;
+        }
+
+        /// Sine amplitude at the tone frequency, in dBFS.
+        #[allow(
+            clippy::cast_precision_loss,
+            clippy::cast_possible_truncation,
+            reason = "frame counts stay far below 2^52 in a probe run; the level fits f32"
+        )]
+        fn level_dbfs(&self) -> f32 {
+            let power = self.previous * self.previous + self.before_previous * self.before_previous
+                - self.coefficient * self.previous * self.before_previous;
+            let amplitude = if self.frames == 0 {
+                0.0
+            } else {
+                2.0 * power.max(0.0).sqrt() / self.frames as f64
+            };
+            amplitude_to_dbfs(amplitude as f32)
+        }
+    }
+
     #[derive(Default)]
     struct WriterResult {
+        tones: Vec<Goertzel>,
         frames: u64,
         blocks: u64,
         discontinuity_blocks: u64,
@@ -174,6 +245,18 @@ mod probe {
     }
 
     pub fn run() -> ExitCode {
+        if std::env::args().nth(1).as_deref() == Some("--list-processes") {
+            return match list_processes() {
+                Ok(listing) => {
+                    println!("{listing}");
+                    ExitCode::SUCCESS
+                }
+                Err(message) => {
+                    eprintln!("probe failed: {message}");
+                    ExitCode::FAILURE
+                }
+            };
+        }
         let options = match parse_options() {
             Ok(options) => options,
             Err(message) => {
@@ -194,10 +277,13 @@ mod probe {
     }
 
     fn parse_options() -> Result<Options, String> {
-        let usage = "usage: --output <path.wav> [--source microphone|system|both] [--seconds <n>] \
-                     [--request-access]";
+        let usage = "usage: --output <path.wav> [--source microphone|system|both|application] \
+                     [--pids <pid,...>] [--seconds <n>] [--tones <hz,...>] [--request-access], \
+                     or --list-processes";
         let mut output = None;
         let mut sources = vec![Source::Microphone];
+        let mut pids = Vec::new();
+        let mut tones_hz = Vec::new();
         let mut seconds = 60;
         let mut request_access = false;
         let mut args = std::env::args().skip(1);
@@ -209,8 +295,23 @@ mod probe {
                         Some("microphone") => vec![Source::Microphone],
                         Some("system") => vec![Source::System],
                         Some("both") => vec![Source::Microphone, Source::System],
-                        _ => return Err("--source needs microphone, system, or both".into()),
+                        Some("application") => vec![Source::Application],
+                        _ => {
+                            return Err(
+                                "--source needs microphone, system, both, or application".into()
+                            );
+                        }
                     };
+                }
+                "--pids" => {
+                    pids = parse_list(args.next(), |pid: &i32| *pid > 0)
+                        .ok_or("--pids needs positive process IDs separated by commas")?;
+                }
+                "--tones" => {
+                    tones_hz = parse_list(args.next(), |hz: &f64| (1.0..=20_000.0).contains(hz))
+                        .ok_or(
+                            "--tones needs frequencies from 1 to 20000 Hz separated by commas",
+                        )?;
                 }
                 "--seconds" => {
                     seconds = args
@@ -223,12 +324,76 @@ mod probe {
                 other => return Err(format!("unknown argument: {other}")),
             }
         }
+        if sources.contains(&Source::Application) == pids.is_empty() {
+            return Err("--pids goes with --source application, and only with it".into());
+        }
         Ok(Options {
             output: output.ok_or(usage)?,
             sources,
+            pids,
+            tones_hz,
             seconds,
             request_access,
         })
+    }
+
+    fn parse_list<T: std::str::FromStr>(
+        value: Option<String>,
+        valid: impl Fn(&T) -> bool,
+    ) -> Option<Vec<T>> {
+        let items: Vec<T> = value?
+            .split(',')
+            .map(|item| item.trim().parse().ok().filter(&valid))
+            .collect::<Option<_>>()?;
+        (!items.is_empty()).then_some(items)
+    }
+
+    /// Lists the processes Core Audio knows as a JSON array.
+    fn list_processes() -> Result<String, String> {
+        let mut count = 0;
+        // SAFETY: a zero capacity with a null array only reads the count into a live u32.
+        let result = unsafe { recorder_list_processes(std::ptr::null_mut(), 0, &raw mut count) };
+        if result != RECORDER_OK {
+            return Err(format!("recorder_list_processes returned {result}"));
+        }
+        // Room for processes that start between the two calls.
+        let capacity = count + 16;
+        let mut processes: Vec<RecorderProcess> = (0..capacity)
+            .map(|_| RecorderProcess {
+                pid: 0,
+                flags: 0,
+                bundle_id: [0; 256],
+            })
+            .collect();
+        // SAFETY: `processes` holds `capacity` writable entries and `count` is a live u32.
+        let result =
+            unsafe { recorder_list_processes(processes.as_mut_ptr(), capacity, &raw mut count) };
+        if result != RECORDER_OK {
+            return Err(format!("recorder_list_processes returned {result}"));
+        }
+        processes.truncate(count.min(capacity) as usize);
+        let entries: Vec<String> = processes
+            .iter()
+            .map(|process| {
+                let end = process
+                    .bundle_id
+                    .iter()
+                    .position(|&byte| byte == 0)
+                    .unwrap_or(256);
+                format!(
+                    "{{\"pid\":{},\"bundleId\":\"{}\",\"runningOutput\":{},\"runningInput\":{}}}",
+                    process.pid,
+                    json_escape(&String::from_utf8_lossy(&process.bundle_id[..end])),
+                    process.flags & RECORDER_PROCESS_RUNNING_OUTPUT != 0,
+                    process.flags & RECORDER_PROCESS_RUNNING_INPUT != 0,
+                )
+            })
+            .collect();
+        Ok(format!("[{}]", entries.join(",")))
+    }
+
+    fn json_escape(text: &str) -> String {
+        text.replace('\\', "\\\\").replace('"', "\\\"")
     }
 
     fn capture(options: &Options) -> Result<String, String> {
@@ -238,7 +403,7 @@ mod probe {
         let mut captures = Vec::new();
         for &source in &options.sources {
             let output = output_path(&options.output, source, options.sources.len() > 1);
-            match open(source, output) {
+            match open(source, output, options) {
                 Ok(capture) => captures.push(capture),
                 Err(message) => {
                     for capture in captures {
@@ -319,7 +484,7 @@ mod probe {
         output.with_file_name(format!("{stem}-{}{extension}", source.name()))
     }
 
-    fn open(source: Source, output: PathBuf) -> Result<Capture, String> {
+    fn open(source: Source, output: PathBuf, options: &Options) -> Result<Capture, String> {
         let mut handle = std::ptr::null_mut();
         // SAFETY: `handle` is a live pointer slot; `finish` or the error path below destroys
         // the handle exactly once.
@@ -327,15 +492,28 @@ mod probe {
         if result != RECORDER_OK {
             return Err(format!("recorder_create returned {result}"));
         }
-        open_with(source, output, handle).inspect_err(|_| {
+        open_with(source, output, handle, options).inspect_err(|_| {
             // SAFETY: `handle` came from `recorder_create`, was never started, and is not
             // used after this call.
             unsafe { recorder_destroy(handle) };
         })
     }
 
-    fn open_with(source: Source, output: PathBuf, handle: *mut c_void) -> Result<Capture, String> {
+    fn open_with(
+        source: Source,
+        output: PathBuf,
+        handle: *mut c_void,
+        options: &Options,
+    ) -> Result<Capture, String> {
         let name = source.name();
+        if source == Source::Application {
+            let count = u32::try_from(options.pids.len()).map_err(|_| "too many PIDs")?;
+            // SAFETY: `handle` is live and `pids` holds `count` values; the bridge copies them.
+            let result = unsafe { recorder_set_processes(handle, options.pids.as_ptr(), count) };
+            if result != RECORDER_OK {
+                return Err(format!("{name}: recorder_set_processes returned {result}"));
+            }
+        }
         let mut native = RecorderFormat::default();
         // SAFETY: `handle` is live and `native` is a writable `recorder_format`.
         let result = unsafe { recorder_prepare(handle, source.kind(), &raw mut native) };
@@ -371,9 +549,14 @@ mod probe {
         let mut file = File::create(&output).map_err(|error| error.to_string())?;
         write_wav_header(&mut file, &format, 0).map_err(|error| error.to_string())?;
         let done = Arc::new(AtomicBool::new(false));
+        let tones = options
+            .tones_hz
+            .iter()
+            .map(|&tone_hz| Goertzel::new(tone_hz, native.sample_rate_hz))
+            .collect();
         let writer = {
             let done = Arc::clone(&done);
-            thread::spawn(move || write_blocks(consumer, file, format, &done))
+            thread::spawn(move || write_blocks(consumer, file, format, tones, &done))
         };
         let state = Box::into_raw(Box::new(CallbackState {
             producer,
@@ -522,9 +705,14 @@ mod probe {
         mut consumer: BlockConsumer,
         mut file: File,
         format: AudioFormat,
+        tones: Vec<Goertzel>,
         done: &AtomicBool,
     ) -> std::io::Result<WriterResult> {
-        let mut result = WriterResult::default();
+        let mut result = WriterResult {
+            tones,
+            ..WriterResult::default()
+        };
+        let channels = usize::from(format.channel_layout().channel_count());
         let mut output = BufWriter::new(&mut file);
         loop {
             // Read the flag before draining so blocks queued before stop are never missed.
@@ -537,13 +725,22 @@ mod probe {
                 if block.header().flags.discontinuity {
                     result.discontinuity_blocks += 1;
                 }
-                for bytes in block.pcm().as_chunks::<4>().0 {
-                    let sample = f32::from_le_bytes(*bytes);
-                    if sample.is_finite() {
-                        result.peak = result.peak.max(sample.abs());
-                        result.energy += f64::from(sample) * f64::from(sample);
-                    } else {
-                        result.non_finite += 1;
+                for frame in block.pcm().as_chunks::<4>().0.chunks(channels) {
+                    let mut sum = 0.0;
+                    for bytes in frame {
+                        let sample = f32::from_le_bytes(*bytes);
+                        if sample.is_finite() {
+                            result.peak = result.peak.max(sample.abs());
+                            result.energy += f64::from(sample) * f64::from(sample);
+                            sum += f64::from(sample);
+                        } else {
+                            result.non_finite += 1;
+                        }
+                    }
+                    #[allow(clippy::cast_precision_loss, reason = "at most 8 channels")]
+                    let mean = sum / channels as f64;
+                    for tone in &mut result.tones {
+                        tone.push(mean);
                     }
                 }
                 output.write_all(block.pcm())?;
@@ -692,14 +889,10 @@ mod probe {
                 "\"maxSampleTimeGapFrames\":{:.1},\"invalidHostTimes\":{},\"invalidSampleTimes\":{},",
                 "\"firstHostTimeNs\":{},\"lastHostTimeNs\":{},\"hostSpanNs\":{},",
                 "\"hostMeasuredRateHz\":{:.3},\"peakDbfs\":{:.2},\"rmsDbfs\":{:.2},",
-                "\"allZero\":{},\"nonFiniteSamples\":{}}}"
+                "\"allZero\":{},\"nonFiniteSamples\":{},\"toneDbfs\":{{{}}}}}"
             ),
             source.name(),
-            output
-                .display()
-                .to_string()
-                .replace('\\', "\\\\")
-                .replace('"', "\\\""),
+            json_escape(&output.display().to_string()),
             native.sample_rate_hz,
             native.channel_count,
             native.max_block_frames,
@@ -729,6 +922,12 @@ mod probe {
             amplitude_to_dbfs(rms as f32),
             written.peak <= 0.0,
             written.non_finite,
+            written
+                .tones
+                .iter()
+                .map(|tone| format!("\"{}\":{:.2}", tone.tone_hz, tone.level_dbfs()))
+                .collect::<Vec<_>>()
+                .join(","),
         )
     }
 }

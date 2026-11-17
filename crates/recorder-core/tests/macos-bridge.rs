@@ -16,6 +16,7 @@ const RECORDER_OK: i32 = 0;
 const RECORDER_INVALID_ARGUMENT: i32 = 1;
 const RECORDER_INVALID_STATE: i32 = 3;
 const RECORDER_SOURCE_MICROPHONE: u32 = 1;
+const RECORDER_SOURCE_APPLICATION: u32 = 3;
 const RECORDER_ACCESS_GRANTED: u32 = 2;
 
 /// Mirrors `recorder_format` in `native/macos/include/recorder-bridge.h`.
@@ -38,13 +39,27 @@ struct RecorderBlock {
     flags: u32,
 }
 
+/// Mirrors `recorder_process`.
+#[repr(C)]
+struct RecorderProcess {
+    pid: i32,
+    flags: u32,
+    bundle_id: [u8; 256],
+}
+
 type BlockCallback = unsafe extern "C" fn(*mut c_void, *const RecorderBlock);
 
 #[link(name = "RecorderBridge", kind = "static")]
 unsafe extern "C" {
     fn recorder_microphone_access(request: u32, access: *mut u32) -> i32;
     fn recorder_list(count: *mut u32) -> i32;
+    fn recorder_list_processes(
+        processes: *mut RecorderProcess,
+        capacity: u32,
+        count: *mut u32,
+    ) -> i32;
     fn recorder_create(handle: *mut *mut c_void) -> i32;
+    fn recorder_set_processes(handle: *mut c_void, pids: *const i32, count: u32) -> i32;
     fn recorder_prepare(handle: *mut c_void, source_kind: u32, format: *mut RecorderFormat) -> i32;
     fn recorder_start(
         handle: *mut c_void,
@@ -66,6 +81,9 @@ fn rust_layouts_match_the_c_header() {
     assert_eq!(offset_of!(RecorderBlock, sample_time), 16);
     assert_eq!(offset_of!(RecorderBlock, frame_count), 24);
     assert_eq!(offset_of!(RecorderBlock, flags), 28);
+    assert_eq!(size_of::<RecorderProcess>(), 264);
+    assert_eq!(offset_of!(RecorderProcess, flags), 4);
+    assert_eq!(offset_of!(RecorderProcess, bundle_id), 8);
 }
 
 #[test]
@@ -77,7 +95,8 @@ fn swift_bridge_links_and_validates_arguments() {
     let mut access = u32::MAX;
     // SAFETY: Every pointer refers to a live local of the declared C type. The handle
     // stays owned here until the single matching destroy call; it is never started, so
-    // no callback can run and `ignore_block` is never called.
+    // no callback can run and `ignore_block` is never called. Null pointers exercise the
+    // bridge's argument checks.
     unsafe {
         assert_eq!(recorder_microphone_access(0, &raw mut access), RECORDER_OK);
         assert!(access <= RECORDER_ACCESS_GRANTED);
@@ -106,6 +125,27 @@ fn swift_bridge_links_and_validates_arguments() {
             RECORDER_OK
         );
         assert_eq!(status, 0);
+        let pids = [i32::try_from(std::process::id()).unwrap()];
+        assert_eq!(
+            recorder_set_processes(handle, std::ptr::null(), 1),
+            RECORDER_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            recorder_set_processes(handle, pids.as_ptr(), 0),
+            RECORDER_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            recorder_prepare(handle, RECORDER_SOURCE_APPLICATION, &raw mut format),
+            RECORDER_INVALID_STATE
+        );
+        assert_eq!(
+            recorder_list_processes(std::ptr::null_mut(), 1, &raw mut count),
+            RECORDER_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            recorder_list_processes(std::ptr::null_mut(), 0, &raw mut count),
+            RECORDER_OK
+        );
         assert_eq!(recorder_stop(handle), RECORDER_OK);
         assert_eq!(recorder_stop(handle), RECORDER_OK);
         assert_eq!(recorder_destroy(handle), RECORDER_OK);

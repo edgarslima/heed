@@ -12,6 +12,10 @@ final class FakeSystemAudio {
     var sampleRate: Double = 48_000
     var bufferFrames: UInt32 = 512
     var returnsProc = true
+    /// PID → process object; a missing PID has no object.
+    var processObjectsByPID: [pid_t: AudioObjectID] = [:]
+    /// Listed process objects with their details; `nil` details fail as if the process exited.
+    var listedProcesses: [(object: AudioObjectID, details: AudioProcessDetails?)] = []
     /// Operation name → status to return instead of `noErr`.
     var failures: [String: OSStatus] = [:]
     private(set) var log: [String] = []
@@ -61,6 +65,17 @@ final class FakeSystemAudio {
             destroyIOProc: { [self] _, _ in step("destroyIOProc") {} },
             destroyAggregate: { [self] _ in step("destroyAggregate") {} },
             destroyTap: { [self] _ in step("destroyTap") {} },
+            processObject: { [self] pid, object in
+                step("processObject") { object = processObjectsByPID[pid] ?? AudioObjectID(kAudioObjectUnknown) }
+            },
+            processObjects: { [self] objects in step("processObjects") { objects = listedProcesses.map(\.object) } },
+            processDetails: { [self] object, details in
+                guard let listed = listedProcesses.first(where: { $0.object == object })?.details else {
+                    return kAudioHardwareBadObjectError
+                }
+                details = listed
+                return noErr
+            },
             hostClock: { HostClock(numerator: 125, denominator: 3) })
     }
 

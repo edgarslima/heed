@@ -5,7 +5,7 @@ import XCTest
 
 final class SystemCaptureTests: XCTestCase {
     private let openSteps = [
-        "outputDevice", "outputUID", "createTap", "tapFormat", "createAggregate", "sampleRate", "bufferFrames",
+        "outputDevice", "outputUID", "processObject", "createTap", "tapFormat", "createAggregate", "sampleRate", "bufferFrames",
         "createIOProc",
     ]
 
@@ -82,10 +82,10 @@ final class SystemCaptureTests: XCTestCase {
             var format = RecorderFormat()
             XCTAssertEqual(capture.prepare(into: &format), .nativeError, step)
             XCTAssertEqual(capture.lastOSStatus, -50, step)
-            // Steps 2 and 4 create the tap and the aggregate; later failures release both.
+            // Steps 3 and 5 create the tap and the aggregate; later failures release both.
             var expectedUnwind: [String] = []
-            if index > 4 { expectedUnwind.append("destroyAggregate") }
-            if index > 2 { expectedUnwind.append("destroyTap") }
+            if index > 5 { expectedUnwind.append("destroyAggregate") }
+            if index > 3 { expectedUnwind.append("destroyTap") }
             XCTAssertEqual(Array(fake.log[(index + 1)...]), expectedUnwind, step)
             fake.failures.removeAll()
             fake.clearLog()
@@ -246,5 +246,120 @@ final class SystemCaptureTests: XCTestCase {
         XCTAssertEqual(capture.prepare(into: &format), .ok)
         XCTAssertEqual(capture.start(callback: BlockCollector.callback, context: collector.context), .ok)
         return capture
+    }
+
+    func testTheGlobalTapExcludesTheRecordersOwnProcess() throws {
+        let fake = FakeSystemAudio()
+        var format = RecorderFormat()
+        let capture = SystemCapture(calls: fake.calls)
+        XCTAssertEqual(capture.prepare(into: &format), .ok)
+        XCTAssertEqual(try XCTUnwrap(fake.tapDescription).processes, [])
+        XCTAssertEqual(capture.stop(), .ok)
+        fake.processObjectsByPID[getpid()] = 99
+        XCTAssertEqual(capture.prepare(into: &format), .ok)
+        let tap = try XCTUnwrap(fake.tapDescription)
+        XCTAssertEqual(tap.processes, [99])
+        XCTAssertTrue(tap.isExclusive)
+        XCTAssertEqual(capture.stop(), .ok)
+    }
+
+    func testTheApplicationTapMixesDownTheChosenProcesses() throws {
+        let fake = FakeSystemAudio()
+        fake.processObjectsByPID = [100: 10, 200: 20]
+        let capture = SystemCapture(calls: fake.calls)
+        capture.includedPIDs = [100, 200]
+        var format = RecorderFormat()
+        XCTAssertEqual(capture.prepare(into: &format), .ok)
+        let tap = try XCTUnwrap(fake.tapDescription)
+        XCTAssertEqual(tap.processes, [10, 20])
+        XCTAssertFalse(tap.isExclusive)
+        XCTAssertTrue(tap.isMixdown)
+        XCTAssertFalse(tap.isMono)
+        XCTAssertEqual(tap.muteBehavior, .unmuted)
+        XCTAssertTrue(tap.isPrivate)
+        XCTAssertEqual(format.channelCount, 2)
+        XCTAssertEqual(capture.stop(), .ok)
+
+        capture.includedPIDs = [100, 300]
+        fake.clearLog()
+        XCTAssertEqual(capture.prepare(into: &format), .sourceUnavailable)
+        XCTAssertEqual(fake.log, ["outputDevice", "outputUID", "processObject", "processObject"])
+        fake.failures["processObject"] = -3
+        XCTAssertEqual(capture.prepare(into: &format), .nativeError)
+        XCTAssertEqual(capture.lastOSStatus, -3)
+        XCTAssertTrue(capture.isIdle)
+    }
+
+    func testTheHandleSelectsApplicationProcessesOnlyWhileIdle() throws {
+        let fake = FakeSystemAudio()
+        fake.processObjectsByPID = [100: 10, 200: 20, getpid(): 99]
+        var output: UnsafeMutableRawPointer?
+        XCTAssertEqual(createHandle(&output, calls: FakeCoreAudio().calls, systemCalls: fake.calls), 0)
+        let handle = try XCTUnwrap(output)
+        var pids: [Int32] = [100, 200]
+        XCTAssertEqual(recorderSetProcesses(nil, &pids, 2), 1)
+        XCTAssertEqual(recorderSetProcesses(handle, nil, 2), 1)
+        XCTAssertEqual(recorderSetProcesses(handle, &pids, 0), 1)
+        XCTAssertEqual(recorderSetProcesses(handle, [Int32](repeating: 100, count: 65), 65), 1)
+        XCTAssertEqual(recorderSetProcesses(handle, [100, 0], 2), 1)
+        XCTAssertEqual(recorderSetProcesses(handle, [-1], 1), 1)
+        var format = RecorderFormat()
+        withUnsafeMutablePointer(to: &format) { pointer in
+            XCTAssertEqual(recorderPrepare(handle, sourceKindApplication, pointer), 3)
+            XCTAssertEqual(recorderPrepare(handle, 4, pointer), 1)
+        }
+        XCTAssertEqual(recorderSetProcesses(handle, &pids, 2), 0)
+        pids[0] = 999
+        withUnsafeMutablePointer(to: &format) { pointer in
+            XCTAssertEqual(recorderPrepare(handle, sourceKindApplication, pointer), 0)
+        }
+        XCTAssertEqual(try XCTUnwrap(fake.tapDescription).processes, [10, 20], "the PIDs were copied")
+        XCTAssertEqual(recorderSetProcesses(handle, &pids, 1), 3)
+        XCTAssertEqual(recorderStop(handle), 0)
+        withUnsafeMutablePointer(to: &format) { pointer in
+            XCTAssertEqual(recorderPrepare(handle, sourceKindSystem, pointer), 0)
+        }
+        let global = try XCTUnwrap(fake.tapDescription)
+        XCTAssertEqual(global.processes, [99])
+        XCTAssertTrue(global.isExclusive)
+        XCTAssertEqual(recorderDestroy(handle), 0)
+    }
+
+    func testListingWritesEntriesUpToCapacityAndCountsEveryProcess() {
+        let fake = FakeSystemAudio()
+        let longID = String(repeating: "a", count: 300)
+        fake.listedProcesses = [
+            (1, AudioProcessDetails(pid: 41, bundleID: "com.apple.Safari", isRunningOutput: true, isRunningInput: false)),
+            (2, nil),
+            (3, AudioProcessDetails(pid: 42, bundleID: longID, isRunningOutput: false, isRunningInput: true)),
+            (4, AudioProcessDetails(pid: 43, bundleID: "", isRunningOutput: true, isRunningInput: true)),
+        ]
+        var count: UInt32 = 99
+        XCTAssertEqual(listProcesses(nil, 0, nil, calls: fake.calls), 1)
+        XCTAssertEqual(listProcesses(nil, 1, &count, calls: fake.calls), 1)
+        XCTAssertEqual(listProcesses(nil, 0, &count, calls: fake.calls), 0)
+        XCTAssertEqual(count, 3)
+
+        let entries = UnsafeMutableRawPointer.allocate(byteCount: 2 * processEntryBytes, alignment: 4)
+        defer { entries.deallocate() }
+        entries.initializeMemory(as: UInt8.self, repeating: 0xFF, count: 2 * processEntryBytes)
+        XCTAssertEqual(listProcesses(entries, 2, &count, calls: fake.calls), 0)
+        XCTAssertEqual(count, 3)
+        func entry(_ index: Int) -> (pid: Int32, flags: UInt32, bundleID: String) {
+            let base = entries.advanced(by: index * processEntryBytes)
+            let text = String(cString: base.advanced(by: 8).assumingMemoryBound(to: CChar.self))
+            return (base.load(as: Int32.self), base.load(fromByteOffset: 4, as: UInt32.self), text)
+        }
+        XCTAssertEqual(entry(0).pid, 41)
+        XCTAssertEqual(entry(0).flags, processRunningOutput)
+        XCTAssertEqual(entry(0).bundleID, "com.apple.Safari")
+        XCTAssertEqual(entry(1).pid, 42)
+        XCTAssertEqual(entry(1).flags, processRunningInput)
+        XCTAssertEqual(entry(1).bundleID, String(repeating: "a", count: 255))
+        XCTAssertEqual(entries.load(fromByteOffset: processEntryBytes + 8 + 255, as: UInt8.self), 0)
+
+        fake.failures["processObjects"] = -4
+        XCTAssertEqual(listProcesses(entries, 2, &count, calls: fake.calls), 5)
+        XCTAssertEqual(count, 0)
     }
 }

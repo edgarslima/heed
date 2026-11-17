@@ -1,10 +1,19 @@
 import CoreAudio
 import Foundation
 
-/// The Core Audio tap, aggregate-device, and IOProc entry points that system capture uses.
+/// What Core Audio reports about one process that uses audio.
+struct AudioProcessDetails: Equatable {
+    var pid: pid_t = 0
+    var bundleID = ""
+    var isRunningOutput = false
+    var isRunningInput = false
+}
+
+/// The Core Audio tap, aggregate-device, IOProc, and process entry points that system and
+/// application capture use.
 ///
-/// `live` forwards each call to the system without branching; every decision lives in
-/// `SystemCapture`, so tests substitute these closures and exercise it without hardware.
+/// `live` only reads and forwards; every capture and listing decision lives in `SystemCapture`
+/// and `listProcesses`, so tests substitute these closures and exercise them without hardware.
 struct SystemAudioCalls {
     var defaultOutputDevice: (inout AudioObjectID) -> OSStatus
     var deviceUID: (AudioObjectID, inout String) -> OSStatus
@@ -20,6 +29,9 @@ struct SystemAudioCalls {
     var destroyIOProc: (AudioObjectID, AudioDeviceIOProcID) -> OSStatus
     var destroyAggregate: (AudioObjectID) -> OSStatus
     var destroyTap: (AudioObjectID) -> OSStatus
+    var processObject: (pid_t, inout AudioObjectID) -> OSStatus
+    var processObjects: (inout [AudioObjectID]) -> OSStatus
+    var processDetails: (AudioObjectID, inout AudioProcessDetails) -> OSStatus
     var hostClock: () -> HostClock
 
     static let live = SystemAudioCalls(
@@ -44,6 +56,48 @@ struct SystemAudioCalls {
         destroyIOProc: { AudioDeviceDestroyIOProcID($0, $1) },
         destroyAggregate: { AudioHardwareDestroyAggregateDevice($0) },
         destroyTap: { AudioHardwareDestroyProcessTap($0) },
+        processObject: { pid, object in
+            var address = AudioObjectPropertyAddress(
+                mSelector: kAudioHardwarePropertyTranslatePIDToProcessObject, mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain)
+            var qualifier = pid
+            var size = UInt32(MemoryLayout<AudioObjectID>.size)
+            return AudioObjectGetPropertyData(
+                AudioObjectID(kAudioObjectSystemObject), &address, UInt32(MemoryLayout<pid_t>.size), &qualifier, &size,
+                &object)
+        },
+        processObjects: { objects in
+            var address = AudioObjectPropertyAddress(
+                mSelector: kAudioHardwarePropertyProcessObjectList, mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain)
+            let system = AudioObjectID(kAudioObjectSystemObject)
+            var size: UInt32 = 0
+            let status = AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size)
+            guard status == noErr else { return status }
+            objects = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+            let read = AudioObjectGetPropertyData(system, &address, 0, nil, &size, &objects)
+            objects.removeLast(objects.count - Int(size) / MemoryLayout<AudioObjectID>.size)
+            return read
+        },
+        processDetails: { object, details in
+            var pid: pid_t = 0
+            var bundleID: Unmanaged<CFString>?
+            var output: UInt32 = 0
+            var input: UInt32 = 0
+            for status in [
+                readProperty(object, kAudioProcessPropertyPID, &pid),
+                readProperty(object, kAudioProcessPropertyBundleID, &bundleID),
+                readProperty(object, kAudioProcessPropertyIsRunningOutput, &output),
+                readProperty(object, kAudioProcessPropertyIsRunningInput, &input),
+            ] where status != noErr {
+                bundleID?.release()
+                return status
+            }
+            details = AudioProcessDetails(
+                pid: pid, bundleID: bundleID?.takeRetainedValue() as String? ?? "", isRunningOutput: output != 0,
+                isRunningInput: input != 0)
+            return noErr
+        },
         hostClock: { HostClock.system() })
 }
 
